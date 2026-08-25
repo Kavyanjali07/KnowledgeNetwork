@@ -86,61 +86,61 @@ By leveraging **PostgreSQL 16** Recursive Common Table Expressions (CTEs) and JS
 
 ```mermaid
 flowchart TB
-    subgraph Client_Layer [Client & Visual Layer]
+    subgraph Client_Layer ["Client & Visual Layer"]
         WebUI["React 19 + Vite SPA (React Flow Visualizer)"]
         APIClients["REST Clients / CLI / OpenAPI Specs"]
     end
 
-    subgraph Container_Runtime [Unified Production Container - Port 8080]
-        direction TB
-        SPARouter["Spring MVC Fallback SPA Router"]
-        
-        subgraph Spring_Security [Spring Security 6]
-            JWTFilter["JwtAuthenticationFilter"]
-            RateLimiter["IP Rate Limiter Interceptor"]
-        end
-
-        subgraph Application_Controllers [REST Controller Layer]
-            AuthCtrl["AuthController"]
-            WorkCtrl["WorkspaceController"]
-            NodeCtrl["NodeController"]
-            EdgeCtrl["RelationshipController"]
-            GraphCtrl["GraphController"]
-            SearchCtrl["GraphSearchController"]
-            VersionCtrl["GraphVersioningController"]
-            NotifCtrl["NotificationController"]
-        end
-
-        subgraph Service_Core [Service & Business Layer]
-            AuthSvc["AuthService"]
-            GraphSvc["GraphTraversalService (BFS/DFS)"]
-            NodeSvc["NodeService"]
-            VersionSvc["GraphVersioningService"]
-            AuditSvc["AuditLogService"]
-        end
-
-        subgraph Data_Access [JPA & Repository Layer]
-            Flyway["Flyway SQL Migration Engine"]
-            EdgeRepo["EdgeRepository (Recursive CTEs)"]
-            NodeRepo["NodeRepository (GIN / FTS)"]
-        end
+    subgraph Edge_Security ["Ingress & Security Layer"]
+        SPARouter["Spring MVC Fallback Router"]
+        RateLimiter["IP Rate Limiter Interceptor"]
+        JWTFilter["JwtAuthenticationFilter"]
     end
 
-    subgraph Data_Persistence [Database & Telemetry Layer]
-        DB[(PostgreSQL 16 - JSONB + Full-Text Search)]
+    subgraph App_Controllers ["REST Controller Layer"]
+        AuthCtrl["AuthController"]
+        WorkCtrl["WorkspaceController"]
+        NodeCtrl["NodeController"]
+        EdgeCtrl["RelationshipController"]
+        GraphCtrl["GraphController"]
+        SearchCtrl["GraphSearchController"]
+        VersionCtrl["GraphVersioningController"]
+    end
+
+    subgraph Service_Layer ["Service & Business Core"]
+        AuthSvc["AuthService"]
+        GraphSvc["GraphTraversalService (BFS/DFS)"]
+        NodeSvc["NodeService"]
+        VersionSvc["GraphVersioningService"]
+        AuditSvc["AuditLogService"]
+    end
+
+    subgraph Data_Layer ["Data Access & Persistence"]
+        Flyway["Flyway Migration Engine"]
+        EdgeRepo["EdgeRepository (Recursive CTEs)"]
+        NodeRepo["NodeRepository (GIN / FTS)"]
+        DB[("PostgreSQL 16 Engine")]
+    end
+
+    subgraph Monitoring_Layer ["Telemetry & Observability"]
+        Actuator["Spring Boot Actuator"]
         Prometheus["Prometheus (:9090)"]
         Grafana["Grafana (:3000)"]
     end
 
-    WebUI -->|HTTP / REST| SPARouter
-    APIClients -->|HTTP / REST| SPARouter
+    WebUI --> SPARouter
+    APIClients --> SPARouter
     SPARouter --> RateLimiter
     RateLimiter --> JWTFilter
-    JWTFilter --> Application_Controllers
-    Application_Controllers --> Service_Core
-    Service_Core --> Data_Access
-    Data_Access --> DB
-    Application_Controllers -. Metrics .-> Prometheus
+    JWTFilter --> App_Controllers
+    App_Controllers --> Service_Layer
+    Service_Layer --> EdgeRepo
+    Service_Layer --> NodeRepo
+    EdgeRepo --> DB
+    NodeRepo --> DB
+    Flyway --> DB
+    App_Controllers -. Metrics .-> Actuator
+    Actuator --> Prometheus
     Prometheus --> Grafana
 ```
 
