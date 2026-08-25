@@ -1,0 +1,73 @@
+Frontend -> Backend mapping audit
+
+Auth:
+- Frontend: POST /auth/login -> api.ts uses post('/auth/login') -> base URL normalized to /api/v1 -> full: POST /api/v1/auth/login
+- Backend: AuthController @RequestMapping("/api/v1/auth") with @PostMapping("/login") -> OK
+- Request body: frontend sends { email, password } -> Backend LoginRequest has fields? Check domain.payload.request.LoginRequest
+
+Workspaces:
+- Frontend: GET /workspaces -> GET /api/v1/workspaces
+- Backend: WorkspaceController @GetMapping -> OK
+- Create: POST /workspaces -> WorkspaceController @PostMapping -> expects WorkspaceCreateRequest
+
+Nodes/Edges:
+- Frontend nodeApi.list: GET /relationships/nodes/{workspaceId} -> Backend RelationshipController @GetMapping("/nodes/{workspaceId}") -> OK
+- nodeApi.create: POST /relationships/nodes -> Backend @PostMapping("/nodes") expects NodeCreateRequest -> frontend sends { workspaceId, nodeTypeId, label, attributes } -> OK
+- nodeApi.update: PUT /relationships/nodes/{workspaceId}/{nodeId} -> Backend expects NodeUpdateRequest -> frontend sends { label, attributes, version } -> OK
+- nodeApi.delete: DELETE /relationships/nodes/{workspaceId}/{nodeId} -> Backend -> OK
+
+Edges:
+- create: POST /relationships/edges -> Backend @PostMapping("/edges") expects EdgeCreateRequest -> frontend sends { workspaceId, edgeTypeId, sourceNodeId, targetNodeId, weight, attributes } -> OK
+- list: GET /relationships/edges/{workspaceId} -> Backend -> OK
+- update: PUT /relationships/edges/{workspaceId}/{edgeId} -> Backend -> OK
+- delete: DELETE /relationships/edges/{workspaceId}/{edgeId} -> Backend -> OK
+
+Relationship types:
+- nodeTypeApi.list: GET /relationships/types/nodes/{workspaceId} -> Backend RelationshipTypeController @GetMapping("/nodes/{workspaceId}") -> OK
+- edgeTypeApi.list: GET /relationships/types/edges/{workspaceId} -> Backend -> OK
+
+Graph traverse/detect:
+- graphApi.traverse: POST /relationships/traverse -> Backend RelationshipController @PostMapping("/traverse") -> expects GraphTraversalRequest -> frontend sends { workspaceId, rootNodeId, maxDepth, edgeTypeNames, direction } -> OK
+- detectCycles: GET /relationships/cycles/{workspaceId} -> Backend -> OK
+
+Search:
+- frontend: GET /graphs/search with params workspaceId, q -> Backend GraphSearchController @GetMapping("/search") -> OK (controller uses RequestParam workspaceId)
+
+Versioning:
+- createSnapshot: POST /graphs/{workspaceId}/snapshots with body { label, description } -> Backend GraphVersioningController @PostMapping("/{workspaceId}/snapshots") -> Expect GraphSnapshotCreateRequest -> OK
+- listHistory: GET /graphs/{workspaceId}/versions -> Backend -> OK
+- restoreVersion: POST /graphs/{workspaceId}/versions/{versionId}/restore -> Backend -> OK
+- createFork: POST /graphs/{workspaceId}/forks -> Backend -> OK
+
+Social:
+- createPost frontend: POST /social/posts with body { workspaceId, content, entityType, entityId } -> Backend SocialController.createPost expects request params, not body: @PostMapping("/posts") with @RequestParam UUID workspaceId, @RequestParam String content, @RequestParam String entityType, @RequestParam UUID entityId
+  -> MISMATCH: Frontend uses POST body, backend expects request params (query/form). However api-client post serializes JSON body; Spring will not map JSON body to @RequestParam. Need to adjust frontend to send as query params OR adjust backend to accept @RequestBody.
+- getPosts frontend: GET /social/posts/{workspaceId} -> Backend @GetMapping("/posts/{workspaceId}") expects PathVariable workspaceId and optional page/size -> OK
+- likePost frontend: POST /social/posts/{postId}/like with body { workspaceId } -> Backend @PostMapping("/posts/{postId}/like") has only @PathVariable postId and AuthenticationPrincipal -> It doesn't accept workspaceId param. Frontend sends workspaceId in body; backend ignores it. Either frontend should not send body or backend should accept request param. POST with body may be ignored but Spring may reject if body present and controller expects none. However current backend method signature has no @RequestBody so request body will be ignored. But api-client sends JSON body; Spring should still accept the request. Still it's better to send workspaceId as request param for consistency.
+- unlike/favorite/unfavorite similar patterns -> Backend methods accept PathVariable and AuthenticationPrincipal only.
+- addComment frontend: POST /social/posts/{postId}/comments with body { workspaceId, content, parentCommentId } -> Backend expects @RequestBody SocialCommentRequest (which likely has content and parentCommentId) and path postId. It does not expect workspaceId; frontend sends workspaceId which will be extra in JSON body; Spring will bind fields present in JSON that match Java fields and ignore extras -> OK
+- addTag frontend: POST /social/posts/{postId}/tags with body { workspaceId, tag } -> Backend expects PathVariable postId and @RequestParam tag -> MISMATCH: frontend sends JSON body; backend expects request param. Call will fail to map tag.
+- followUser frontend: POST /social/follow with body { workspaceId, followeeId } -> Backend expects @RequestParam UUID followeeId -> MISMATCH: frontend sends JSON body; backend expects request param.
+- getSummary frontend: GET /social/posts/${postId}/summary with params { workspaceId } -> Backend @GetMapping("/posts/{postId}/summary") expects only PathVariable postId -> It ignores workspaceId param -> OK
+
+Notifications:
+- notificationApi.list: GET /notifications -> Backend @GetMapping -> OK
+- getUnreadCount: GET /notifications/unread-count -> Backend GET returns Long -> frontend expects { count: number } -> MISMATCH: backend returns ApiResponse<Long> with raw number; frontend expects object { count } -> Need to adapt frontend to use response.data (number) not response.data.count.
+- markAsRead frontend: PUT /notifications/{id}/read -> Backend uses @PatchMapping("/{id}/read") -> MISMATCH HTTP verb; frontend uses PUT while backend expects PATCH. However Spring will accept PUT to PATCH endpoint? No. Must match. Need to change frontend to use PUT? Better change frontend to call PATCH. api-client has function `put` and not `patch`. There's no `patch` helper. Options: add `patch` helper or change frontend to use `put` and backend to accept PUT. Simpler: add `patch` helper in api-client or change frontend to call `put` only if backend accepts PUT. Check backend: markAsRead is @PatchMapping. So implement `patch` in api-client and use it from notificationApi.markAsRead.
+
+Conclusions:
+- Many endpoints align. Issues found:
+  1) Social createPost expects RequestParams, frontend sends JSON body. Adjust frontend socialApi to send as params.
+  2) Social addTag and followUser use RequestParam but frontend sends body; adjust frontend to pass params.
+  3) Notifications markAsRead uses PATCH; add `patch` helper to `api-client` and update frontend to call it.
+  4) notificationApi.getUnreadCount frontend expects `{ count }` but backend returns raw number. Update frontend to adapt.
+
+Next steps:
+- Implement small frontend fixes in `frontend/src/lib/api.ts` and `frontend/src/lib/api-client.ts`:
+  - Add `patch` method in api-client.
+  - Update `socialApi.createPost` to send params (use post with null body and params? Use axios.post with params config).
+  - Update `socialApi.addTag`, `followUser` to send params instead of JSON body.
+  - Update `notificationApi.markAsRead` to use `patch`.
+  - Update `notificationApi.getUnreadCount` to return `{ count: number }` or adapt caller code.
+
+I'll apply these controlled edits now.

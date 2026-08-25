@@ -1,0 +1,189 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 216 28% 96%;
+  --foreground: 222 47% 8%;
+  --card: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --muted: 220 16% 92%;
+  --muted-foreground: 215 16% 42%;
+  --primary: 263 70% 50%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 190 90% 45%;
+  --border: 218 18% 84%;
+  --radius: 10px;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 220 42% 3%;
+  --foreground: 210 40% 98%;
+  --card: 220 34% 7%;
+  --popover: 220 34% 7%;
+  --muted: 217 24% 14%;
+  --muted-foreground: 215 16% 64%;
+  --primary: 263 70% 54%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 190 90% 50%;
+  --border: 218 18% 16%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: hsl(var(--background));
+  font-family:
+    Inter, Geist, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 2px;
+}
+
+.animated-auth-gradient {
+  background:
+    radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.22), transparent 28%),
+    radial-gradient(circle at 82% 12%, rgba(217, 70, 239, 0.2), transparent 30%),
+    radial-gradient(circle at 55% 82%, rgba(124, 58, 237, 0.24), transparent 34%),
+    linear-gradient(135deg, #05070b 0%, #080d18 48%, #040711 100%);
+  animation: auth-gradient-shift 14s ease-in-out infinite alternate;
+}
+
+.floating-auth-card {
+  animation: auth-card-float 7s ease-in-out infinite;
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.13), transparent);
+  transform: translateX(-100%);
+  animation: skeleton-shimmer 1.45s infinite;
+}
+
+.knowledge-flow {
+  background:
+    radial-gradient(circle at 35% 20%, rgba(56, 189, 248, 0.12), transparent 28%),
+    radial-gradient(circle at 72% 64%, rgba(124, 58, 237, 0.12), transparent 30%),
+    #05070b;
+}
+
+.knowledge-flow .react-flow__pane {
+  cursor: grab;
+}
+
+.knowledge-flow .react-flow__pane:active {
+  cursor: grabbing;
+}
+
+.knowledge-flow .react-flow__node {
+  transition:
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.knowledge-flow .react-flow__node:hover {
+  filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.18));
+}
+
+.knowledge-flow .react-flow__edge-path {
+  stroke: rgba(125, 211, 252, 0.62);
+}
+
+.knowledge-flow .knowledge-flow-edge .react-flow__edge-path {
+  stroke: rgba(34, 211, 238, 0.72);
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.16));
+}
+
+.knowledge-flow .react-flow__edge-textbg {
+  fill: rgba(8, 12, 20, 0.88);
+}
+
+.knowledge-flow .react-flow__edge-text {
+  fill: rgba(226, 232, 240, 0.86);
+  font-size: 11px;
+}
+
+.knowledge-flow .react-flow__controls-button {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  color: rgba(226, 232, 240, 0.9) !important;
+}
+
+.knowledge-flow .react-flow__minimap-mask {
+  fill: rgba(2, 6, 23, 0.72);
+}
+
+@keyframes auth-gradient-shift {
+  0% {
+    filter: hue-rotate(0deg) saturate(1);
+    transform: scale(1);
+  }
+
+  100% {
+    filter: hue-rotate(12deg) saturate(1.18);
+    transform: scale(1.04);
+  }
+}
+
+@keyframes auth-card-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.page-fade-in {
+  animation: pageFadeIn 0.3s ease-out;
+}
+
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

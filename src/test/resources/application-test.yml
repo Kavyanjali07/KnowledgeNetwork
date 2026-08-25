@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:kn_test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+app:
+  jwt:
+    secret: test-secret-value-for-jwt-authentication-testing-key-32bytes-minimum
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
+    issuer: test-issuer
+  rate-limit:
+    enabled: false
+
