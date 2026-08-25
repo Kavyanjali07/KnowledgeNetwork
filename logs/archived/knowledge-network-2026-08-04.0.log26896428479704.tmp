@@ -1,0 +1,26 @@
+2026-08-05 14:39:23.757 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.1.Final
+2026-08-05 14:39:23.847 [main] INFO  c.k.controller.AuthControllerTest - Starting AuthControllerTest using Java 25.0.3 with PID 168483 (started by kavya in /home/kavya/Documents/Projects/KnowledgeNetwork)
+2026-08-05 14:39:23.850 [main] INFO  c.k.controller.AuthControllerTest - The following 1 profile is active: "test"
+2026-08-05 14:39:25.829 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-08-05 14:39:26.018 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - Finished Spring Data repository scanning in 176 ms. Found 19 JPA repository interfaces.
+2026-08-05 14:39:29.345 [main] INFO  o.h.jpa.internal.util.LogHelper - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-08-05 14:39:29.457 [main] INFO  org.hibernate.Version - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-08-05 14:39:29.528 [main] INFO  o.h.c.i.RegionFactoryInitiator - HHH000026: Second-level cache disabled
+2026-08-05 14:39:29.757 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-08-05 14:39:29.820 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-08-05 14:39:30.153 [main] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection conn0: url=jdbc:h2:mem:kn_test user=SA
+2026-08-05 14:39:30.156 [main] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-08-05 14:39:30.205 [main] WARN  org.hibernate.orm.deprecation - HHH90000025: H2Dialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-08-05 14:39:32.746 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-08-05 14:39:32.957 [main] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-08-05 14:39:34.925 [main] INFO  o.s.d.j.r.query.QueryEnhancerFactory - Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-08-05 14:39:35.763 [main] WARN  o.s.b.a.o.j.JpaBaseConfiguration$JpaWebConfiguration - spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-08-05 14:39:36.960 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 3 endpoint(s) beneath base path '/actuator'
+2026-08-05 14:39:37.121 [main] INFO  o.s.s.web.DefaultSecurityFilterChain - Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@4c046a12, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@2c45de6e, org.springframework.security.web.context.SecurityContextHolderFilter@20eee47c, org.springframework.security.web.header.HeaderWriterFilter@7cb77d5, org.springframework.web.filter.CorsFilter@640b5373, org.springframework.security.web.authentication.logout.LogoutFilter@2aa93f15, com.knowledgenetwork.security.JwtAuthenticationFilter@398a27e, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@3e9a0143, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@23368646, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@51680b0e, org.springframework.security.web.session.SessionManagementFilter@4ca3923, org.springframework.security.web.access.ExceptionTranslationFilter@172f0ab5, org.springframework.security.web.access.intercept.AuthorizationFilter@6c73d88c]
+2026-08-05 14:39:38.438 [main] INFO  o.s.b.t.m.w.SpringBootMockServletContext - Initializing Spring TestDispatcherServlet ''
+2026-08-05 14:39:38.438 [main] INFO  o.s.t.w.s.TestDispatcherServlet - Initializing Servlet ''
+2026-08-05 14:39:38.440 [main] INFO  o.s.t.w.s.TestDispatcherServlet - Completed initialization in 1 ms
+2026-08-05 14:39:38.626 [main] INFO  c.k.controller.AuthControllerTest - Started AuthControllerTest in 15.619 seconds (process running for 17.934)
+2026-08-05 14:39:39.467 [SpringApplicationShutdownHook] INFO  o.s.o.j.LocalContainerEntityManagerFactoryBean - Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-08-05 14:39:39.500 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown initiated...
+2026-08-05 14:39:39.503 [SpringApplicationShutdownHook] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Shutdown completed.

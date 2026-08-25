@@ -1,0 +1,11 @@
+.git
+.agents
+.codex
+.kilo
+.postqode
+target
+logs
+frontend/node_modules
+frontend/dist
+**/.DS_Store
+**/._*
