@@ -116,18 +116,23 @@ export function useCreateEdge(workspaceId: string) {
   const { addToast } = useToast();
   return useMutation({
     mutationFn: (req: {
-      edgeTypeId: string;
       sourceNodeId: string;
       targetNodeId: string;
+      relationshipType?: string;
+      edgeTypeId?: string;
+      label?: string;
+      description?: string;
       weight?: number;
       attributes?: Record<string, unknown>;
-    }) => edgeApi.create(workspaceId, req.edgeTypeId, req.sourceNodeId, req.targetNodeId, req.weight, req.attributes),
+    }) => edgeApi.create(workspaceId, req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace-edges", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["graphs"] });
+      addToast({ type: "success", title: "Connection established", description: "Relationship saved to graph." });
     },
-      onError: (error: any) => {
-        addToast({ type: "error", title: "Failed to create edge", description: error.message });
-      }
+    onError: (error: any) => {
+      addToast({ type: "error", title: "Connection failed", description: error.message || "Failed to create relationship." });
+    }
   });
 }
 
@@ -137,16 +142,29 @@ export function useUpdateEdge(workspaceId: string) {
   return useMutation({
     mutationFn: (req: {
       edgeId: string;
+      relationshipType?: string;
+      edgeTypeId?: string;
+      label?: string;
+      description?: string;
       weight?: number;
       attributes?: Record<string, unknown>;
       version: number;
-    }) => edgeApi.update(workspaceId, req.edgeId, req.weight, req.attributes, req.version),
+    }) => edgeApi.update(req.edgeId, {
+      relationshipType: req.relationshipType,
+      edgeTypeId: req.edgeTypeId,
+      label: req.label,
+      description: req.description,
+      weight: req.weight,
+      attributes: req.attributes,
+      version: req.version
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace-edges", workspaceId] });
+      addToast({ type: "success", title: "Connection updated", description: "Relationship updated." });
     },
-      onError: (error: any) => {
-        addToast({ type: "error", title: "Failed to update edge", description: error.message });
-      }
+    onError: (error: any) => {
+      addToast({ type: "error", title: "Failed to update edge", description: error.message });
+    }
   });
 }
 
@@ -154,15 +172,16 @@ export function useDeleteEdge(workspaceId: string) {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
   return useMutation({
-    mutationFn: (edgeId: string) => edgeApi.delete(workspaceId, edgeId),
+    mutationFn: (edgeId: string) => edgeApi.delete(edgeId),
     onSuccess: () => {
-      addToast({ type: "success", title: "Edge deleted", description: "The edge has been removed." });
+      addToast({ type: "success", title: "Connection removed", description: "The relationship edge has been removed." });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["workspace-edges", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["graphs"] });
     },
-      onError: (error: any) => {
-        addToast({ type: "error", title: "Failed to delete edge", description: error.message });
+    onError: (error: any) => {
+      addToast({ type: "error", title: "Failed to delete edge", description: error.message });
     }
   });
 }

@@ -28,5 +28,9 @@ public interface EdgeRepository extends JpaRepository<Edge, UUID> {
 
     boolean existsByIdAndWorkspaceAndIsDeletedFalse(UUID id, Workspace workspace);
 
+    boolean existsByWorkspaceAndSourceNodeAndTargetNodeAndEdgeTypeAndIsDeletedFalse(Workspace workspace, Node sourceNode, Node targetNode, EdgeType edgeType);
+
+    List<Edge> findByWorkspaceAndIsDeletedFalse(Workspace workspace);
+
     long countByWorkspaceAndIsDeletedFalse(Workspace workspace);
 }

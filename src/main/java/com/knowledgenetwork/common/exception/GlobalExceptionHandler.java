@@ -135,16 +135,33 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler({ConcurrencyConflictException.class, ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
-    public ResponseEntity<ErrorDetails> handleConcurrencyConflictException(
-            Exception ex, HttpServletRequest request) {
-        log.warn("Optimistic locking conflict detected: {}", ex.getMessage());
+    @ExceptionHandler(InvalidEdgeConnectionException.class)
+    public ResponseEntity<ErrorDetails> handleInvalidEdgeConnectionException(
+            InvalidEdgeConnectionException ex, HttpServletRequest request) {
+        log.warn("Invalid edge connection: {}", ex.getMessage());
 
         ErrorDetails error = ErrorDetails.builder()
-                .type("https://knowledgenetwork.io/errors/concurrency-conflict")
-                .title("Concurrency Conflict")
+                .type("https://knowledgenetwork.io/errors/invalid-edge-connection")
+                .title("Invalid Edge Connection")
+                .status(HttpStatus.BAD_REQUEST.value())
+                .detail(ex.getMessage())
+                .instance(request.getRequestURI())
+                .timestamp(Instant.now())
+                .build();
+
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler({DuplicateEdgeException.class, ConcurrencyConflictException.class, ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
+    public ResponseEntity<ErrorDetails> handleConcurrencyConflictException(
+            Exception ex, HttpServletRequest request) {
+        log.warn("Conflict detected: {}", ex.getMessage());
+
+        ErrorDetails error = ErrorDetails.builder()
+                .type("https://knowledgenetwork.io/errors/conflict")
+                .title("Conflict")
                 .status(HttpStatus.CONFLICT.value())
-                .detail("The entity was updated or deleted by another user concurrently. Please reload and try again.")
+                .detail(ex.getMessage())
                 .instance(request.getRequestURI())
                 .timestamp(Instant.now())
                 .build();

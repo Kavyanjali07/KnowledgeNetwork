@@ -196,9 +196,14 @@ public class GraphService {
         });
 
         List.of(
-                new EdgeType(workspace, "Related to", true),
-                new EdgeType(workspace, "Depends on", true),
-                new EdgeType(workspace, "References", true)
+                new EdgeType(workspace, "RELATED_TO", true),
+                new EdgeType(workspace, "DEPENDS_ON", true),
+                new EdgeType(workspace, "PART_OF", true),
+                new EdgeType(workspace, "PREREQUISITE_OF", true),
+                new EdgeType(workspace, "CAUSES", true),
+                new EdgeType(workspace, "SUPPORTS", true),
+                new EdgeType(workspace, "CONTRADICTS", true),
+                new EdgeType(workspace, "REFERENCES", true)
         ).forEach(edgeType -> {
             edgeType.setCreatedBy(creatorId);
             edgeType.setUpdatedBy(creatorId);
