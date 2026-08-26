@@ -1,9 +1,9 @@
 import {
-  addEdge,
   Background,
   BackgroundVariant,
   Connection,
   Controls,
+  Edge,
   MiniMap,
   Node,
   ReactFlow,
@@ -17,10 +17,10 @@ import { Loader2, AlertTriangle, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import "@xyflow/react/dist/style.css";
-import { nodeTypeApi, edgeTypeApi } from "../../../services";
+import { nodeTypeApi } from "../../../services";
 import type { AutosaveState, KnowledgeNodeData } from "../types";
 import type { NodeResponse } from "../../../services";
-import type { NodeTypeResponse, EdgeTypeResponse } from "../../../services";
+import type { NodeTypeResponse } from "../../../services";
 import { useCreateNode, useDeleteNode, useCreateEdge, useDeleteEdge, useUpdateNode } from "../../../hooks/use-mutations";
 import { useWorkspaceEdges, useWorkspaceNodes } from "../../../hooks/use-queries";
 import { GraphContextMenu } from "./GraphContextMenu";
@@ -28,9 +28,11 @@ import { GraphInspector } from "./GraphInspector";
 import { GraphToolbar } from "./GraphToolbar";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { KnowledgeNode } from "./KnowledgeNode";
+import { CreateEdgeModal } from "./CreateEdgeModal";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { EmptyState } from "../../../components/ui/empty-state";
+import { useToast } from "../../../components/ui/toast";
 import { useGlobalSearch } from "../../search/hooks/useGlobalSearch";
 
 type ContextMenuState = {
@@ -67,18 +69,27 @@ function mapApiNodeToReactFlowNode(apiNode: NodeResponse): Node<KnowledgeNodeDat
   };
 }
 
-function mapApiEdgeToReactFlowEdge(apiEdge: any): any {
+function mapApiEdgeToReactFlowEdge(apiEdge: any): Edge {
+  const labelText = apiEdge.label || apiEdge.attributes?.label || apiEdge.relationshipType || apiEdge.edgeTypeName || "";
   return {
     id: apiEdge.id,
     source: apiEdge.sourceNodeId,
     target: apiEdge.targetNodeId,
-    label: apiEdge.attributes?.label,
+    label: labelText,
+    data: {
+      relationshipType: apiEdge.relationshipType || apiEdge.edgeTypeName || "RELATED_TO",
+      label: apiEdge.label || apiEdge.attributes?.label || "",
+      description: apiEdge.description || apiEdge.attributes?.description || "",
+      version: apiEdge.version,
+      weight: apiEdge.weight
+    },
     animated: true,
     className: "knowledge-flow-edge"
   };
 }
 
 function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
+  const { addToast } = useToast();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [connectionMode, setConnectionMode] = useState(false);
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("saved");
@@ -91,6 +102,15 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
   const [createNodeTypeId, setCreateNodeTypeId] = useState<string>("");
   const [createPos, setCreatePos] = useState<{ x: number; y: number } | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  // Create Edge Modal state
+  const [isCreateEdgeOpen, setIsCreateEdgeOpen] = useState(false);
+  const [pendingConnection, setPendingConnection] = useState<{
+    source: string;
+    target: string;
+    sourceTitle: string;
+    targetTitle: string;
+  } | null>(null);
 
   const {
     data: nodeListResponse,
@@ -114,7 +134,7 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
   );
 
   const edges = useMemo(
-    () => (edgeListResponse?.content ?? []).map(mapApiEdgeToReactFlowEdge),
+    () => (edgeListResponse ?? []).map(mapApiEdgeToReactFlowEdge),
     [edgeListResponse]
   );
 
@@ -130,6 +150,11 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
   }, [edges, setEdges]);
 
   const selectedNode = internalNodes.find((node) => node.selected);
+  const selectedEdge = internalEdges.find((edge) => edge.selected);
+
+  const selectedEdgeSourceNode = selectedEdge ? internalNodes.find((n) => n.id === selectedEdge.source) : undefined;
+  const selectedEdgeTargetNode = selectedEdge ? internalNodes.find((n) => n.id === selectedEdge.target) : undefined;
+
   const reactFlow = useReactFlow();
   const { openSearch } = useGlobalSearch();
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -139,37 +164,53 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
     queryFn: () => nodeTypeApi.list(workspaceId).then((r) => r.data as any)
   });
 
-  const { data: edgeTypeListResponse } = useQuery<EdgeTypeResponse[]>({
-    queryKey: ["edge-types", workspaceId],
-    queryFn: () => edgeTypeApi.list(workspaceId).then((r) => r.data as any)
-  });
 
   const createEdgeMutation = useCreateEdge(workspaceId);
+  const deleteNodeMutation = useDeleteNode(workspaceId);
+  const deleteEdgeMutation = useDeleteEdge(workspaceId);
+  const updateNodeMutation = useUpdateNode(workspaceId);
+  const addNodeMutation = useCreateNode(workspaceId);
 
   const onConnect = useCallback(
     (connection: Connection) => {
-      const edgeTypeId = edgeTypeListResponse?.[0]?.id;
-      if (!edgeTypeId) return;
+      if (!connection.source || !connection.target) return;
+      if (connection.source === connection.target) {
+        addToast({ type: "error", title: "Invalid Connection", description: "A topic cannot be connected to itself." });
+        return;
+      }
 
-      createEdgeMutation.mutate({
-        edgeTypeId,
-        sourceNodeId: connection.source,
-        targetNodeId: connection.target,
-        attributes: {}
-      }, {
-        onSuccess: (response) => {
-          setEdges((currentEdges) => addEdge(mapApiEdgeToReactFlowEdge(response.data), currentEdges));
-        }
+      const sourceNode = internalNodes.find((n) => n.id === connection.source);
+      const targetNode = internalNodes.find((n) => n.id === connection.target);
+
+      setPendingConnection({
+        source: connection.source,
+        target: connection.target,
+        sourceTitle: sourceNode?.data.title || "Source Node",
+        targetTitle: targetNode?.data.title || "Target Node"
       });
+      setIsCreateEdgeOpen(true);
     },
-    [setEdges, createEdgeMutation, edgeTypeListResponse]
+    [internalNodes, addToast]
   );
 
-  const deleteNodeMutation = useDeleteNode(workspaceId);
-  const deleteEdgeMutation = useDeleteEdge(workspaceId);
-
-  const updateNodeMutation = useUpdateNode(workspaceId);
-  const addNodeMutation = useCreateNode(workspaceId);
+  const handleCreateEdgeSubmit = (data: { relationshipType: string; label: string; description: string }) => {
+    if (!pendingConnection) return;
+    createEdgeMutation.mutate(
+      {
+        sourceNodeId: pendingConnection.source,
+        targetNodeId: pendingConnection.target,
+        relationshipType: data.relationshipType,
+        label: data.label,
+        description: data.description
+      },
+      {
+        onSuccess: () => {
+          setIsCreateEdgeOpen(false);
+          setPendingConnection(null);
+        }
+      }
+    );
+  };
 
   const openCreateModal = (position?: { x: number; y: number }) => {
     setCreateTitle("");
@@ -350,6 +391,7 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
             onSelect={() => {
               setConnectionMode(false);
               setNodes((currentNodes) => currentNodes.map((node) => ({ ...node, selected: false })));
+              setEdges((currentEdges) => currentEdges.map((edge) => ({ ...edge, selected: false })));
             }}
             onFitView={fitView}
             onDeleteSelected={deleteSelected}
@@ -392,6 +434,7 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
           onNodeContextMenu={(event, node) => {
             event.preventDefault();
             setNodes((currentNodes) => currentNodes.map((item) => ({ ...item, selected: item.id === node.id })));
+            setEdges((currentEdges) => currentEdges.map((e) => ({ ...e, selected: false })));
             setContextMenu({
               x: event.clientX,
               y: event.clientY,
@@ -426,14 +469,38 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
               y={contextMenu.y}
               onAddNode={() => openCreateModal({ x: contextMenu.flowX, y: contextMenu.flowY })}
               onSearch={openSearch}
-              onClearSelection={() => setNodes((currentNodes) => currentNodes.map((node) => ({ ...node, selected: false })))}
+              onClearSelection={() => {
+                setNodes((currentNodes) => currentNodes.map((node) => ({ ...node, selected: false })));
+                setEdges((currentEdges) => currentEdges.map((edge) => ({ ...edge, selected: false })));
+              }}
               onClose={() => setContextMenu(null)}
             />
           )}
         </AnimatePresence>
       </div>
 
-      <GraphInspector width={inspectorWidth} selectedNode={selectedNode} workspaceId={workspaceId} onResizeStart={onResizeStart} />
+      <GraphInspector
+        width={inspectorWidth}
+        selectedNode={selectedNode}
+        selectedEdge={selectedEdge}
+        sourceNodeTitle={selectedEdgeSourceNode?.data.title}
+        targetNodeTitle={selectedEdgeTargetNode?.data.title}
+        workspaceId={workspaceId}
+        onResizeStart={onResizeStart}
+      />
+
+      {/* CREATE RELATIONSHIP EDGE MODAL */}
+      <CreateEdgeModal
+        isOpen={isCreateEdgeOpen}
+        onClose={() => {
+          setIsCreateEdgeOpen(false);
+          setPendingConnection(null);
+        }}
+        sourceNodeTitle={pendingConnection?.sourceTitle || ""}
+        targetNodeTitle={pendingConnection?.targetTitle || ""}
+        onSubmit={handleCreateEdgeSubmit}
+        isLoading={createEdgeMutation.isPending}
+      />
 
       {/* CREATE NODE MODAL */}
       <AnimatePresence>

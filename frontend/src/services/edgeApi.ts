@@ -12,10 +12,20 @@ export interface EdgeTypeResponse {
 
 export interface EdgeResponse {
   id: string;
+  graphId?: string;
   workspaceId: string;
-  edgeTypeId: string;
+  edgeTypeId?: string;
+  edgeTypeName?: string;
+  relationshipType?: string;
+  directed?: boolean;
   sourceNodeId: string;
+  sourceNodeLabel?: string;
+  sourceNodeTitle?: string;
   targetNodeId: string;
+  targetNodeLabel?: string;
+  targetNodeTitle?: string;
+  label?: string;
+  description?: string;
   weight: number;
   attributes: Record<string, unknown>;
   createdAt: string;
@@ -24,6 +34,27 @@ export interface EdgeResponse {
   updatedBy: string;
   version: number;
   deleted: boolean;
+}
+
+export interface EdgeCreatePayload {
+  sourceNodeId: string;
+  targetNodeId: string;
+  relationshipType?: string;
+  edgeTypeId?: string;
+  label?: string;
+  description?: string;
+  weight?: number;
+  attributes?: Record<string, unknown>;
+}
+
+export interface EdgeUpdatePayload {
+  relationshipType?: string;
+  edgeTypeId?: string;
+  label?: string;
+  description?: string;
+  weight?: number;
+  attributes?: Record<string, unknown>;
+  version: number;
 }
 
 export const edgeTypeApi = {
@@ -38,12 +69,16 @@ export const edgeTypeApi = {
 };
 
 export const edgeApi = {
-  list: (workspaceId: string, page: number = 0, size: number = 100) =>
-    get<{ content: EdgeResponse[]; totalElements: number; totalPages: number; pageNumber: number; pageSize: number }>(`/relationships/edges/${workspaceId}`, { params: { page, size } }),
-  create: (workspaceId: string, edgeTypeId: string, sourceNodeId: string, targetNodeId: string, weight?: number, attributes?: Record<string, unknown>) =>
-    post<EdgeResponse>("/relationships/edges", { workspaceId, edgeTypeId, sourceNodeId, targetNodeId, weight, attributes }),
-  update: (workspaceId: string, edgeId: string, weight?: number, attributes?: Record<string, unknown>, version?: number) =>
-    put<EdgeResponse>(`/relationships/edges/${workspaceId}/${edgeId}`, { weight, attributes, version }),
-  delete: (workspaceId: string, edgeId: string) =>
-    del<void>(`/relationships/edges/${workspaceId}/${edgeId}`)
+  list: (graphId: string) =>
+    get<EdgeResponse[] | { content: EdgeResponse[] }>(`/graphs/${graphId}/edges`).then((response) => ({
+      data: Array.isArray(response.data) ? response.data : response.data?.content ?? []
+    })),
+  getById: (edgeId: string) =>
+    get<EdgeResponse>(`/edges/${edgeId}`),
+  create: (graphId: string, payload: EdgeCreatePayload) =>
+    post<EdgeResponse>(`/graphs/${graphId}/edges`, payload),
+  update: (edgeId: string, payload: EdgeUpdatePayload) =>
+    put<EdgeResponse>(`/edges/${edgeId}`, payload),
+  delete: (edgeId: string) =>
+    del<void>(`/edges/${edgeId}`)
 };
