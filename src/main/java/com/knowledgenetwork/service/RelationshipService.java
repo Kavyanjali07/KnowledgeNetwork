@@ -68,7 +68,15 @@ public class RelationshipService {
         Workspace workspace = getWorkspace(request.getWorkspaceId());
         workspaceSecurityValidator.validateWriteAccess(workspace, SecurityUtils.getCurrentUserId());
         NodeType nodeType = getNodeType(request.getNodeTypeId(), workspace);
-        Node node = new Node(workspace, nodeType, request.getLabel(), request.getAttributes());
+        Double posX = request.getPositionX();
+        Double posY = request.getPositionY();
+        if (posX == null && request.getAttributes() != null && request.getAttributes().containsKey("positionX")) {
+            try { posX = Double.parseDouble(request.getAttributes().get("positionX").toString()); } catch (Exception ignored) {}
+        }
+        if (posY == null && request.getAttributes() != null && request.getAttributes().containsKey("positionY")) {
+            try { posY = Double.parseDouble(request.getAttributes().get("positionY").toString()); } catch (Exception ignored) {}
+        }
+        Node node = new Node(workspace, nodeType, request.getLabel(), request.getAttributes(), posX, posY);
         String currentUserId = SecurityUtils.getCurrentUserId().toString();
         node.setCreatedBy(currentUserId);
         node.setUpdatedBy(currentUserId);
@@ -101,6 +109,12 @@ public class RelationshipService {
         }
         if (request.getAttributes() != null) {
             node.setAttributes(request.getAttributes());
+        }
+        if (request.getPositionX() != null) {
+            node.setPositionX(request.getPositionX());
+        }
+        if (request.getPositionY() != null) {
+            node.setPositionY(request.getPositionY());
         }
         String currentUserId = SecurityUtils.getCurrentUserId().toString();
         node.setUpdatedBy(currentUserId);
@@ -381,6 +395,8 @@ public class RelationshipService {
         response.setNodeTypeColor(node.getNodeType().getColorCode());
         response.setNodeTypeIcon(node.getNodeType().getIcon());
         response.setLabel(node.getLabel());
+        response.setPositionX(node.getPositionX());
+        response.setPositionY(node.getPositionY());
         response.setAttributes(node.getAttributes());
         response.setCreatedAt(node.getCreatedAt());
         response.setUpdatedAt(node.getUpdatedAt());

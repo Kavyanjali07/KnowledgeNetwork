@@ -64,6 +64,8 @@ public class GraphSearchController {
         response.setNodeTypeColor(node.getNodeType().getColorCode());
         response.setNodeTypeIcon(node.getNodeType().getIcon());
         response.setLabel(node.getLabel());
+        response.setPositionX(node.getPositionX());
+        response.setPositionY(node.getPositionY());
         response.setAttributes(node.getAttributes());
         response.setCreatedAt(node.getCreatedAt());
         response.setUpdatedAt(node.getUpdatedAt());

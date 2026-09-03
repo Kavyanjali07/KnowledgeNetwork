@@ -26,6 +26,10 @@ import com.knowledgenetwork.repository.WorkspaceMemberRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
 import com.knowledgenetwork.security.JwtTokenProvider;
 import com.knowledgenetwork.security.UserPrincipal;
+import com.knowledgenetwork.domain.enums.OtpType;
+import com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest;
+import com.knowledgenetwork.domain.payload.request.ResetPasswordRequest;
+import com.knowledgenetwork.repository.VerificationOtpRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -33,6 +37,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -50,6 +55,7 @@ public class AuthService {
     private final EdgeTypeRepository edgeTypeRepository;
     private final OtpService otpService;
     private final EmailService emailService;
+    private final VerificationOtpRepository verificationOtpRepository;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -62,7 +68,8 @@ public class AuthService {
                        NodeTypeRepository nodeTypeRepository,
                        EdgeTypeRepository edgeTypeRepository,
                        OtpService otpService,
-                       EmailService emailService) {
+                       EmailService emailService,
+                       VerificationOtpRepository verificationOtpRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -75,6 +82,7 @@ public class AuthService {
         this.edgeTypeRepository = edgeTypeRepository;
         this.otpService = otpService;
         this.emailService = emailService;
+        this.verificationOtpRepository = verificationOtpRepository;
     }
 
     @Transactional
@@ -218,6 +226,48 @@ public class AuthService {
         } else if (refreshTokenStr != null && !refreshTokenStr.isBlank()) {
             refreshTokenService.revokeByToken(refreshTokenStr);
         }
+    }
+
+    @Transactional
+    public void forgotPassword(ForgotPasswordRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        Optional<User> userOpt = userRepository.findByEmail(email);
+
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String otp = otpService.generateAndSaveOtp(user.getId(), OtpType.PASSWORD_RESET);
+            emailService.sendPasswordResetEmail(user.getEmail(), otp);
+        } else {
+            org.slf4j.LoggerFactory.getLogger(AuthService.class)
+                    .info("Password reset requested for non-existent email address: [{}]", email);
+        }
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        String email = request.getEmail().toLowerCase().trim();
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException("Invalid reset request. No active user found for email: " + email));
+
+        if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
+            throw new BusinessException("New password must be at least 8 characters long.");
+        }
+
+        // Verify OTP for PASSWORD_RESET purpose
+        otpService.verifyOtp(user.getId(), request.getCode(), OtpType.PASSWORD_RESET);
+
+        // Update password hash
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        // Invalidate all remaining reset OTPs for user
+        verificationOtpRepository.invalidateAllByUserIdAndOtpType(user.getId(), OtpType.PASSWORD_RESET);
+
+        // Revoke all active user sessions / refresh tokens
+        refreshTokenService.revokeByUserId(user.getId());
+
+        org.slf4j.LoggerFactory.getLogger(AuthService.class)
+                .info("Successfully reset password and revoked sessions for user [{}]", user.getId());
     }
 
     private void createDefaultUserStorage(User user) {

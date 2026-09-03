@@ -38,4 +38,23 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
             @Param("user") User user,
             @Param("visibility") Visibility visibility,
             Pageable pageable);
+
+    @Query("""
+        SELECT DISTINCT w FROM Workspace w
+        LEFT JOIN w.members m
+        WHERE w.isDeleted = false
+        AND (
+            (:user IS NOT NULL AND w.owner = :user)
+            OR (:user IS NOT NULL AND m.user = :user)
+            OR w.visibility = com.knowledgenetwork.domain.model.Visibility.PUBLIC
+        )
+        AND (
+            LOWER(w.name) LIKE LOWER(CONCAT('%', :query, '%'))
+            OR LOWER(w.description) LIKE LOWER(CONCAT('%', :query, '%'))
+        )
+    """)
+    Page<Workspace> searchAccessibleWorkspaces(
+            @Param("user") User user,
+            @Param("query") String query,
+            Pageable pageable);
 }

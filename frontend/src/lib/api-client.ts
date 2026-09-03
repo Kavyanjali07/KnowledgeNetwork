@@ -191,7 +191,10 @@ apiClient.interceptors.response.use(
 
     const apiError = parseApiError(error);
 
-    if (typeof window !== "undefined") {
+    const requestUrl = (error.config as RetriableRequestConfig | undefined)?.url || "";
+    const isAuthEndpoint = requestUrl.includes("/auth/refresh") || requestUrl.includes("/auth/login");
+
+    if (!isAuthEndpoint && typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("api-error", { detail: apiError }));
     }
 

@@ -1,33 +1,62 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { initialRecentSearches, popularTags } from "../data/searchData";
+import { useSearchParams } from "react-router-dom";
+import { initialRecentSearches } from "../data/searchData";
 import { searchApi } from "../../../services";
-import { useCurrentWorkspace } from "../../../hooks/use-queries";
+import type { SearchItemResponse } from "../../../services";
 import type {
+  NodeTypeFilter,
   RecentSearchItem,
   SearchFilterState,
   SearchResultCategory,
-  SearchResultItem
+  SearchResultItem,
+  VisibilityFilter
 } from "../types";
 
 const LOCAL_STORAGE_KEY = "kn_recent_searches_v1";
 
+const COMMAND_ITEMS: SearchResultItem[] = [
+  {
+    id: "cmd-create-graph",
+    resultType: "COMMAND",
+    title: "Create Graph",
+    description: "Start a new knowledge workspace graph",
+    actionId: "CREATE_GRAPH",
+    url: "/graphs"
+  },
+  {
+    id: "cmd-toggle-theme",
+    resultType: "COMMAND",
+    title: "Toggle Theme",
+    description: "Switch between dark and light mode",
+    actionId: "TOGGLE_THEME"
+  },
+  {
+    id: "cmd-view-notifications",
+    resultType: "COMMAND",
+    title: "View Notifications",
+    description: "Check your recent system and activity alerts",
+    actionId: "VIEW_NOTIFICATIONS",
+    url: "/notifications"
+  }
+];
+
 export function useAdvancedSearch() {
-  const { workspaceId } = useCurrentWorkspace();
-  const [query, setQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [query, setQuery] = useState(() => searchParams.get("q") || "");
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+
   const [filterState, setFilterState] = useState<SearchFilterState>({
-    category: "all",
-    dateRange: "any",
-    minConfidence: 0,
-    sortBy: "relevance"
+    category: (searchParams.get("type") as SearchResultCategory) || "all",
+    nodeType: (searchParams.get("nodeType") as NodeTypeFilter) || "all",
+    visibility: (searchParams.get("visibility") as VisibilityFilter) || "all"
   });
 
   const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>(() => {
     try {
       const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (saved) {
-        return JSON.parse(saved);
-      }
+      if (saved) return JSON.parse(saved);
     } catch (e) {
       console.warn("Failed to read recent searches from localStorage", e);
     }
@@ -36,6 +65,15 @@ export function useAdvancedSearch() {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
 
+  // Sync debounced query (300ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  // Persist recent searches
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(recentSearches));
@@ -44,95 +82,103 @@ export function useAdvancedSearch() {
     }
   }, [recentSearches]);
 
-  const isCommandMode = query.trim().startsWith(">") || filterState.category === "commands";
+  // Command mode check
+  const isCommandMode = query.trim().startsWith(">");
   const cleanQuery = useMemo(() => {
     if (query.trim().startsWith(">")) return query.trim().slice(1).trim();
-    if (query.trim().startsWith("#")) return query.trim().slice(1).trim();
     return query.trim();
   }, [query]);
 
-  const isTagMode = query.trim().startsWith("#") || Boolean(filterState.selectedTag);
-
-  const { data: apiResults, isLoading: isSearchLoading, isError: isSearchError, error: searchError } = useQuery({
-    queryKey: ["search-results", workspaceId, query, filterState],
+  // Fetch unified search results from backend API
+  const {
+    data: apiResults,
+    isLoading: isSearchLoading,
+    isError: isSearchError,
+    error: searchError,
+    refetch
+  } = useQuery({
+    queryKey: ["unified-search", debouncedQuery, filterState.category, filterState.nodeType, filterState.visibility],
     queryFn: () =>
       searchApi
-        .search(
-          workspaceId!,
-          cleanQuery,
-          filterState.selectedTag ? [filterState.selectedTag] : undefined,
-          undefined,
-          0,
-          20,
-          {
-            updatedAfter: filterState.dateRange === "any" ? undefined : new Date(Date.now() - (
-              filterState.dateRange === "today" ? 24 * 60 * 60 * 1000 :
-              filterState.dateRange === "week" ? 7 * 24 * 60 * 60 * 1000 :
-              30 * 24 * 60 * 60 * 1000
-            )).toISOString(),
-            minConfidence: filterState.minConfidence || undefined,
-            sortBy: filterState.sortBy
-          }
-        )
+        .unifiedSearch({
+          q: debouncedQuery,
+          type: filterState.category === "commands" ? "all" : filterState.category,
+          nodeType: filterState.nodeType === "all" ? undefined : filterState.nodeType,
+          page: 0,
+          size: 30
+        })
         .then((r) => r.data),
-    enabled: Boolean(workspaceId) && cleanQuery.length >= 2 && !isCommandMode && !isTagMode,
+    enabled: debouncedQuery.length >= 1 && !isCommandMode,
     staleTime: 5_000
   });
 
-  const apiSuggestions = useMemo(() => {
-    if (!apiResults?.content) return [];
-    return apiResults.content.map((item: any) => ({
-      id: item.id,
-      category: item.type === "node" ? "nodes" : item.type === "edge" ? "edges" : item.category ?? "all",
-      title: item.label,
-      subtitle: item.nodeTypeName,
-      description: typeof item.attributes?.description === "string" ? item.attributes.description : undefined,
-      tags: item.tags,
-      type: item.nodeTypeName,
-      confidence: typeof item.attributes?.confidence === "number" ? item.attributes.confidence : undefined,
-      connections: typeof item.attributes?.connections === "number" ? item.attributes.connections : 0,
-      updatedAt: item.updatedAt,
-      url: workspaceId ? `/graph?workspaceId=${workspaceId}` : undefined,
-      shortcut: undefined,
-      actionId: undefined
-    })) as SearchResultItem[];
-  }, [apiResults, workspaceId]);
-
-  const suggestions = useMemo(() => {
-    if (isCommandMode || isTagMode || cleanQuery.length < 2) {
-      return apiSuggestions;
+  // Map backend DTOs to UI items
+  const mappedResults = useMemo(() => {
+    if (isCommandMode) {
+      const q = cleanQuery.toLowerCase();
+      return COMMAND_ITEMS.filter(
+        (c) => c.title.toLowerCase().includes(q) || (c.description && c.description.toLowerCase().includes(q))
+      );
     }
-    return apiSuggestions;
-  }, [apiSuggestions, isCommandMode, isTagMode, cleanQuery]);
 
+    if (!apiResults?.content) return [];
+
+    return apiResults.content
+      .filter((item: SearchItemResponse) => {
+        if (filterState.visibility !== "all" && item.visibility && item.visibility !== filterState.visibility) {
+          return false;
+        }
+        return true;
+      })
+      .map((item: SearchItemResponse) => {
+        let url = "";
+        if (item.resultType === "GRAPH") {
+          url = `/graph?workspaceId=${item.id}`;
+        } else if (item.resultType === "NODE") {
+          url = `/graph?workspaceId=${item.graphId}&nodeId=${item.id}`;
+        }
+
+        return {
+          id: item.id,
+          resultType: item.resultType,
+          title: item.title,
+          description: item.description,
+          graphId: item.graphId,
+          graphTitle: item.graphTitle,
+          nodeTypeName: item.nodeTypeName,
+          nodeTypeColor: item.nodeTypeColor,
+          nodeTypeIcon: item.nodeTypeIcon,
+          positionX: item.positionX,
+          positionY: item.positionY,
+          visibility: item.visibility,
+          nodeCount: item.nodeCount,
+          edgeCount: item.edgeCount,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+          url
+        } as SearchResultItem;
+      });
+  }, [apiResults, isCommandMode, cleanQuery, filterState.visibility]);
+
+  // Reset selected index when results change
   useEffect(() => {
     setSelectedIndex(0);
-  }, [suggestions.length, query, filterState]);
+  }, [mappedResults.length, query, filterState]);
 
-  const tagSuggestions = useMemo(() => {
-    if (!query.trim().startsWith("#")) return popularTags;
-    const tagQuery = query.trim().slice(1).toLowerCase();
-    return popularTags.filter((t) => t.name.toLowerCase().includes(tagQuery));
-  }, [query]);
+  const addRecentSearch = useCallback((q: string) => {
+    const trimmed = q.trim();
+    if (!trimmed || trimmed.length < 1 || trimmed.startsWith(">")) return;
 
-  const addRecentSearch = useCallback(
-    (q: string, category: SearchResultCategory = "all") => {
-      const trimmed = q.trim();
-      if (!trimmed || trimmed.length < 2 || trimmed.startsWith(">")) return;
-
-      setRecentSearches((prev) => {
-        const filtered = prev.filter((item) => item.query.toLowerCase() !== trimmed.toLowerCase());
-        const newItem: RecentSearchItem = {
-          id: `rec-${Date.now()}`,
-          query: trimmed,
-          timestamp: Date.now(),
-          category
-        };
-        return [newItem, ...filtered].slice(0, 10);
-      });
-    },
-    []
-  );
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((item) => item.query.toLowerCase() !== trimmed.toLowerCase());
+      const newItem: RecentSearchItem = {
+        id: `rec-${Date.now()}`,
+        query: trimmed,
+        timestamp: Date.now()
+      };
+      return [newItem, ...filtered].slice(0, 10);
+    });
+  }, []);
 
   const removeRecentSearch = useCallback((id: string) => {
     setRecentSearches((prev) => prev.filter((item) => item.id !== id));
@@ -142,46 +188,71 @@ export function useAdvancedSearch() {
     setRecentSearches([]);
   }, []);
 
-  const selectTag = useCallback((tagName: string) => {
-    setFilterState((prev) => ({
-      ...prev,
-      selectedTag: prev.selectedTag === tagName ? undefined : tagName
-    }));
-  }, []);
+  // Sync state to URL if on search page
+  const updateUrlState = useCallback(
+    (newQuery: string, newFilters: SearchFilterState) => {
+      const params = new URLSearchParams();
+      if (newQuery) params.set("q", newQuery);
+      if (newFilters.category !== "all") params.set("type", newFilters.category);
+      if (newFilters.nodeType !== "all") params.set("nodeType", newFilters.nodeType);
+      if (newFilters.visibility !== "all") params.set("visibility", newFilters.visibility);
 
+      setSearchParams(params, { replace: true });
+    },
+    [setSearchParams]
+  );
+
+  const handleSetQuery = useCallback(
+    (q: string) => {
+      setQuery(q);
+      updateUrlState(q, filterState);
+    },
+    [filterState, updateUrlState]
+  );
+
+  const handleSetFilterState = useCallback(
+    (updater: SearchFilterState | ((prev: SearchFilterState) => SearchFilterState)) => {
+      setFilterState((prev) => {
+        const next = typeof updater === "function" ? updater(prev) : updater;
+        updateUrlState(query, next);
+        return next;
+      });
+    },
+    [query, updateUrlState]
+  );
+
+  // Group count numbers for tabs
   const categoryCounts = useMemo(() => {
-    const counts: Record<SearchResultCategory, number> = {
-      all: apiResults?.totalElements ?? 0,
-      nodes: apiResults?.content?.filter((r: any) => r.type === "node" || r.category === "nodes").length ?? 0,
-      edges: apiResults?.content?.filter((r: any) => r.type === "edge" || r.category === "edges").length ?? 0,
-      tags: popularTags.length,
-      people: 0,
-      workspaces: 0,
-      commands: 0
+    const allCount = apiResults?.totalElements ?? 0;
+    const graphsCount = mappedResults.filter((r: SearchResultItem) => r.resultType === "GRAPH").length;
+    const nodesCount = mappedResults.filter((r: SearchResultItem) => r.resultType === "NODE").length;
+
+    return {
+      all: allCount,
+      graphs: filterState.category === "graphs" ? allCount : graphsCount,
+      nodes: filterState.category === "nodes" ? allCount : nodesCount,
+      commands: COMMAND_ITEMS.length
     };
-    return counts;
-  }, [apiResults]);
+  }, [apiResults, mappedResults, filterState.category]);
 
   return {
     query,
-    setQuery,
+    setQuery: handleSetQuery,
     cleanQuery,
     isCommandMode,
-    isTagMode,
     filterState,
-    setFilterState,
+    setFilterState: handleSetFilterState,
     recentSearches,
-    suggestions,
-    tagSuggestions,
+    suggestions: mappedResults,
     categoryCounts,
     selectedIndex,
     setSelectedIndex,
     addRecentSearch,
     removeRecentSearch,
     clearRecentSearches,
-    selectTag,
     isSearchLoading,
     isSearchError,
-    searchError
+    searchError,
+    refetchSearch: refetch
   };
 }

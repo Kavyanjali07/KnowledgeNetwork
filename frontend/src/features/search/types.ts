@@ -1,50 +1,41 @@
 export type SearchResultCategory =
   | "all"
+  | "graphs"
   | "nodes"
-  | "edges"
-  | "tags"
-  | "people"
-  | "workspaces"
   | "commands";
 
-export type DateRangeOption = "any" | "today" | "week" | "month";
-export type SortOption = "relevance" | "recent" | "confidence" | "connections";
+export type NodeTypeFilter = "all" | "Concept" | "Document" | "Person" | "Decision" | "Service" | "Feature";
+export type VisibilityFilter = "all" | "PUBLIC" | "PRIVATE";
 
 export interface SearchResultItem {
   id: string;
-  category: SearchResultCategory;
+  resultType: "GRAPH" | "NODE" | "COMMAND";
   title: string;
-  subtitle?: string;
   description?: string;
-  tags?: string[];
-  type?: string; // e.g. Concept, Document, Decision, Person, Service, Feature, Edge
-  confidence?: number;
-  connections?: number;
+  graphId?: string;
+  graphTitle?: string;
+  nodeTypeName?: string;
+  nodeTypeColor?: string;
+  nodeTypeIcon?: string;
+  positionX?: number;
+  positionY?: number;
+  visibility?: "PUBLIC" | "PRIVATE";
+  nodeCount?: number;
+  edgeCount?: number;
+  createdAt?: string;
   updatedAt?: string;
   url?: string;
-  sourceNode?: string;
-  targetNode?: string;
-  shortcut?: string;
   actionId?: string;
 }
 
 export interface SearchFilterState {
   category: SearchResultCategory;
-  selectedTag?: string;
-  dateRange: DateRangeOption;
-  minConfidence: number;
-  sortBy: SortOption;
+  nodeType: NodeTypeFilter;
+  visibility: VisibilityFilter;
 }
 
 export interface RecentSearchItem {
   id: string;
   query: string;
   timestamp: number;
-  category?: SearchResultCategory;
-}
-
-export interface TagInfo {
-  name: string;
-  count: number;
-  category?: string;
 }

@@ -1,6 +1,7 @@
 package com.knowledgenetwork.service;
 
 import com.knowledgenetwork.common.exception.BusinessException;
+import com.knowledgenetwork.domain.enums.OtpType;
 import com.knowledgenetwork.domain.model.VerificationOtp;
 import com.knowledgenetwork.repository.VerificationOtpRepository;
 import org.slf4j.Logger;
@@ -39,7 +40,12 @@ public class OtpService {
 
     @Transactional
     public String generateAndSaveOtp(UUID userId) {
-        Optional<VerificationOtp> latestOtpOpt = verificationOtpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId);
+        return generateAndSaveOtp(userId, OtpType.EMAIL_VERIFICATION);
+    }
+
+    @Transactional
+    public String generateAndSaveOtp(UUID userId, OtpType otpType) {
+        Optional<VerificationOtp> latestOtpOpt = verificationOtpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, otpType);
         if (latestOtpOpt.isPresent()) {
             VerificationOtp latest = latestOtpOpt.get();
             Instant cooldownTime = latest.getCreatedAt().plusSeconds(resendCooldownSeconds);
@@ -49,8 +55,8 @@ public class OtpService {
             }
         }
 
-        // Invalidate all previous unused OTPs for this user
-        verificationOtpRepository.invalidateAllByUserId(userId);
+        // Invalidate all previous unused OTPs of this type for this user
+        verificationOtpRepository.invalidateAllByUserIdAndOtpType(userId, otpType);
 
         // Generate 6-digit OTP using SecureRandom
         int number = secureRandom.nextInt(1_000_000);
@@ -58,23 +64,29 @@ public class OtpService {
 
         VerificationOtp otpEntity = new VerificationOtp();
         otpEntity.setUserId(userId);
+        otpEntity.setOtpType(otpType);
         otpEntity.setOtpHash(passwordEncoder.encode(rawOtp));
         otpEntity.setExpiresAt(Instant.now().plusMillis(otpExpirationMs));
         otpEntity.setUsed(false);
 
         verificationOtpRepository.save(otpEntity);
-        log.info("Generated secure OTP for user [{}]", userId);
+        log.info("Generated secure [{}] OTP for user [{}]", otpType, userId);
 
         return rawOtp;
     }
 
     @Transactional
     public void verifyOtp(UUID userId, String rawOtp) {
+        verifyOtp(userId, rawOtp, OtpType.EMAIL_VERIFICATION);
+    }
+
+    @Transactional
+    public void verifyOtp(UUID userId, String rawOtp, OtpType otpType) {
         if (rawOtp == null || rawOtp.trim().length() != 6) {
             throw new BusinessException("Verification code must be 6 digits.");
         }
 
-        VerificationOtp otpEntity = verificationOtpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId)
+        VerificationOtp otpEntity = verificationOtpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, otpType)
                 .orElseThrow(() -> new BusinessException("No active verification code found. Please request a new code."));
 
         if (otpEntity.isExpired()) {
@@ -89,6 +101,6 @@ public class OtpService {
 
         otpEntity.setUsed(true);
         verificationOtpRepository.save(otpEntity);
-        log.info("Successfully verified OTP for user [{}]", userId);
+        log.info("Successfully verified [{}] OTP for user [{}]", otpType, userId);
     }
 }

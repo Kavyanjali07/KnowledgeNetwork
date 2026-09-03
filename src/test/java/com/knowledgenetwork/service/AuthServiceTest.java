@@ -77,6 +77,9 @@ class AuthServiceTest {
     @Mock
     private EmailService emailService;
 
+    @Mock
+    private VerificationOtpRepository verificationOtpRepository;
+
     @InjectMocks
     private AuthService authService;
 

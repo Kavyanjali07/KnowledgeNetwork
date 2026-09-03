@@ -1,10 +1,12 @@
 package com.knowledgenetwork.controller;
 
 import com.knowledgenetwork.common.dto.ApiResponse;
+import com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest;
 import com.knowledgenetwork.domain.payload.request.LoginRequest;
 import com.knowledgenetwork.domain.payload.request.RefreshTokenRequest;
 import com.knowledgenetwork.domain.payload.request.RegisterRequest;
 import com.knowledgenetwork.domain.payload.request.ResendOtpRequest;
+import com.knowledgenetwork.domain.payload.request.ResetPasswordRequest;
 import com.knowledgenetwork.domain.payload.request.VerifyEmailRequest;
 import com.knowledgenetwork.domain.payload.response.AuthResponse;
 import com.knowledgenetwork.domain.payload.response.RegisterResponse;
@@ -127,5 +129,19 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cleanCookie.toString())
                 .body(ApiResponse.success("Logged out successfully", null));
+    }
+
+    @PostMapping("/forgot-password")
+    @Operation(summary = "Request a 6-digit password reset OTP (does not disclose user existence)")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        authService.forgotPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("If an account exists for this email, we've sent a password reset code.", null));
+    }
+
+    @PostMapping("/reset-password")
+    @Operation(summary = "Reset password using 6-digit OTP code and revoke all previous sessions")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Your password has been reset successfully. You can now log in with your new password.", null));
     }
 }
