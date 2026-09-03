@@ -43,6 +43,34 @@ export interface WorkspaceMemberResponse {
   joinedAt: string;
 }
 
+export interface SearchItemResponse {
+  resultType: 'GRAPH' | 'NODE';
+  id: string;
+  title: string;
+  description?: string;
+  graphId: string;
+  graphTitle: string;
+  nodeTypeName?: string;
+  nodeTypeColor?: string;
+  nodeTypeIcon?: string;
+  positionX?: number;
+  positionY?: number;
+  visibility?: 'PUBLIC' | 'PRIVATE';
+  nodeCount?: number;
+  edgeCount?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface UnifiedSearchResponse {
+  content: SearchItemResponse[];
+  totalElements: number;
+  pageSize: number;
+  pageNumber: number;
+  totalPages: number;
+  isLast: boolean;
+}
+
 export interface SearchResponse {
   content: NodeResponse[];
   totalElements: number;
@@ -115,6 +143,14 @@ export const graphApi = {
 };
 
 export const searchApi = {
+  unifiedSearch: (params: {
+    q?: string;
+    type?: 'all' | 'graphs' | 'nodes';
+    nodeType?: string;
+    page?: number;
+    size?: number;
+  }) => get<UnifiedSearchResponse>("/search", { params }),
+
   search: (
     workspaceId: string,
     query: string,

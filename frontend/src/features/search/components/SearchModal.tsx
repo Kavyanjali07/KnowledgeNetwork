@@ -1,23 +1,20 @@
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
-  Calendar,
   Clock,
   FileText,
   Filter,
   Folder,
-  GitCommit,
-  Hash,
+  Globe,
   HelpCircle,
   History,
+  Lock,
   Network,
   RotateCcw,
   Search,
   SlidersHorizontal,
-  Sparkles,
   Terminal,
   Trash2,
-  User,
   X,
   Zap
 } from "lucide-react";
@@ -26,12 +23,11 @@ import { useNavigate } from "react-router-dom";
 import { useAdvancedSearch } from "../hooks/useAdvancedSearch";
 import { useGlobalSearch } from "../hooks/useGlobalSearch";
 import type {
-  DateRangeOption,
+  NodeTypeFilter,
   SearchResultCategory,
   SearchResultItem,
-  SortOption
+  VisibilityFilter
 } from "../types";
-import { GraphPathPreview } from "./GraphPathPreview";
 
 interface SearchModalProps {
   onSelectAction?: (item: SearchResultItem) => void;
@@ -39,13 +35,12 @@ interface SearchModalProps {
 
 const CATEGORY_TABS: { id: SearchResultCategory; label: string; icon: React.ElementType }[] = [
   { id: "all", label: "All", icon: Search },
+  { id: "graphs", label: "Graphs", icon: Folder },
   { id: "nodes", label: "Nodes", icon: FileText },
-  { id: "edges", label: "Edges", icon: GitCommit },
-  { id: "tags", label: "Tags", icon: Hash },
-  { id: "people", label: "People", icon: User },
-  { id: "workspaces", label: "Workspaces", icon: Folder },
   { id: "commands", label: "Commands", icon: Terminal }
 ];
+
+const NODE_TYPES: NodeTypeFilter[] = ["all", "Concept", "Document", "Person", "Decision", "Service", "Feature"];
 
 export function SearchModal({ onSelectAction }: SearchModalProps) {
   const navigate = useNavigate();
@@ -55,22 +50,20 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
     setQuery,
     cleanQuery,
     isCommandMode,
-    isTagMode,
     filterState,
     setFilterState,
     recentSearches,
     suggestions,
-    tagSuggestions,
     categoryCounts,
     selectedIndex,
     setSelectedIndex,
     addRecentSearch,
     removeRecentSearch,
     clearRecentSearches,
-    selectTag
-    ,isSearchLoading
-    ,isSearchError
-    ,searchError
+    isSearchLoading,
+    isSearchError,
+    searchError,
+    refetchSearch
   } = useAdvancedSearch();
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -84,15 +77,14 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
     }
   }, [isSearchOpen]);
 
-  // Reset local state when modal closes
+  // Reset query on close
   useEffect(() => {
     if (!isSearchOpen) {
       setShowAdvancedFilters(false);
-      setQuery("");
     }
   }, [isSearchOpen]);
 
-  // Handle global shortcuts and modal keyboard navigation
+  // Keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (!isSearchOpen) return;
@@ -140,7 +132,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isSearchOpen, suggestions, selectedIndex, filterState.category, closeSearch]);
 
-  // Scroll active item into view smoothly
+  // Scroll active item into view
   useEffect(() => {
     if (!resultsContainerRef.current) return;
     const activeEl = resultsContainerRef.current.querySelector(`[data-index="${selectedIndex}"]`);
@@ -151,7 +143,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
 
   const handleSelectItem = (item: SearchResultItem) => {
     if (query.trim()) {
-      addRecentSearch(query.trim(), item.category);
+      addRecentSearch(query.trim());
     }
 
     if (onSelectAction) {
@@ -167,15 +159,12 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
     closeSearch();
   };
 
-  const getItemIcon = (category: SearchResultCategory, type?: string) => {
-    if (category === "commands") return Terminal;
-    if (category === "people") return User;
-    if (category === "workspaces") return Folder;
-    if (category === "tags") return Hash;
-    if (category === "edges") return GitCommit;
-    if (type === "Decision") return Zap;
-    if (type === "Document") return FileText;
-    if (type === "Service") return Terminal;
+  const getItemIcon = (resultType: string, nodeTypeName?: string) => {
+    if (resultType === "COMMAND") return Terminal;
+    if (resultType === "GRAPH") return Folder;
+    if (nodeTypeName === "Decision") return Zap;
+    if (nodeTypeName === "Document") return FileText;
+    if (nodeTypeName === "Service") return Terminal;
     return Network;
   };
 
@@ -191,7 +180,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
         onMouseDown={closeSearch}
       >
         <motion.div
-          className="relative flex w-full max-w-3xl flex-col max-h-[82vh] overflow-hidden rounded-2xl border border-white/12 bg-[rgba(8,12,22,0.92)] shadow-2xl shadow-cyan-950/40 backdrop-blur-2xl"
+          className="relative flex w-full max-w-3xl flex-col max-h-[82vh] overflow-hidden rounded-2xl border border-white/12 bg-[rgba(8,12,22,0.95)] shadow-2xl shadow-cyan-950/40 backdrop-blur-2xl"
           initial={{ opacity: 0, scale: 0.96, y: -12 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: -12 }}
@@ -199,26 +188,11 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
           onMouseDown={(e) => e.stopPropagation()}
         >
           {/* Top Header & Search Input Bar */}
-          <div className="relative flex items-center gap-3 border-b border-white/10 px-4 py-3.5 bg-white/[0.02]">
+          <div className="relative flex items-center gap-2.5 border-b border-white/10 px-3.5 py-3 bg-white/[0.02]">
             {isCommandMode ? (
-              <Terminal size={19} className="text-cyan-400 animate-pulse" />
-            ) : isTagMode ? (
-              <Hash size={19} className="text-violet-400" />
+              <Terminal size={19} className="text-cyan-400 animate-pulse shrink-0" />
             ) : (
-              <Search size={19} className="text-cyan-400" />
-            )}
-
-            {/* Selected Tag Pill */}
-            {filterState.selectedTag && (
-              <span className="flex items-center gap-1 rounded-md border border-violet-500/40 bg-violet-950/60 px-2 py-1 text-xs font-semibold text-violet-300">
-                #{filterState.selectedTag}
-                <button
-                  onClick={() => selectTag(filterState.selectedTag!)}
-                  className="hover:text-white"
-                >
-                  <X size={12} />
-                </button>
-              </span>
+              <Search size={19} className="text-cyan-400 shrink-0" />
             )}
 
             <input
@@ -226,15 +200,17 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search nodes, edges, tags, people or type '>' for commands..."
-              className="h-10 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
+              placeholder="Search your graphs and knowledge..."
+              className="h-10 flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none min-w-0"
+              aria-label="Search query input"
             />
 
             {query && (
               <button
                 onClick={() => setQuery("")}
-                className="rounded-md p-1 text-slate-400 hover:bg-white/10 hover:text-foreground"
+                className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-foreground transition shrink-0"
                 title="Clear input"
+                aria-label="Clear search input"
               >
                 <X size={16} />
               </button>
@@ -242,20 +218,31 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
 
             <button
               onClick={() => setShowAdvancedFilters((prev) => !prev)}
-              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition ${
-                showAdvancedFilters || filterState.dateRange !== "any" || filterState.minConfidence > 0
+              className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition shrink-0 ${
+                showAdvancedFilters || filterState.nodeType !== "all" || filterState.visibility !== "all"
                   ? "border-cyan-500/40 bg-cyan-950/40 text-cyan-300"
                   : "border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08]"
               }`}
               title="Toggle filter controls"
+              aria-label="Toggle search filters"
             >
               <SlidersHorizontal size={13} />
               <span className="hidden sm:inline">Filters</span>
             </button>
 
-            <span className="rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 font-mono text-[11px] text-slate-400">
-              ESC
-            </span>
+            {/* Prominent Close Button */}
+            <button
+              onClick={closeSearch}
+              aria-label="Close search"
+              title="Close search (Esc)"
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.06] hover:bg-rose-500/20 hover:border-rose-500/40 hover:text-rose-200 px-2.5 py-1.5 text-xs font-medium text-slate-300 transition shrink-0 focus:outline-none focus:ring-2 focus:ring-cyan-500/50"
+            >
+              <X size={16} className="text-slate-300 group-hover:text-rose-200" />
+              <span className="hidden sm:inline">Close</span>
+              <kbd className="hidden md:inline rounded border border-white/10 bg-black/40 px-1 py-0.2 font-mono text-[10px] text-slate-400">
+                Esc
+              </kbd>
+            </button>
           </div>
 
           {/* Expandable Advanced Filters Drawer */}
@@ -268,78 +255,70 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                 className="overflow-hidden border-b border-white/10 bg-black/40 px-4 py-3 text-xs text-slate-300"
               >
                 <div className="flex flex-wrap items-center gap-4">
-                  {/* Date Range Filter */}
+                  {/* Node Type Filter */}
                   <div className="flex items-center gap-2">
-                    <Calendar size={13} className="text-cyan-400" />
-                    <span>Updated:</span>
-                    {(["any", "today", "week", "month"] as DateRangeOption[]).map((range) => (
-                      <button
-                        key={range}
-                        onClick={() =>
-                          setFilterState((prev) => ({ ...prev, dateRange: range }))
-                        }
-                        className={`capitalize rounded px-2 py-0.5 text-[11px] transition ${
-                          filterState.dateRange === range
-                            ? "bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/40"
-                            : "hover:bg-white/10 text-slate-400"
-                        }`}
-                      >
-                        {range}
-                      </button>
-                    ))}
+                    <Filter size={13} className="text-cyan-400" />
+                    <span>Node Type:</span>
+                    <select
+                      value={filterState.nodeType}
+                      onChange={(e) =>
+                        setFilterState((prev) => ({
+                          ...prev,
+                          nodeType: e.target.value as NodeTypeFilter
+                        }))
+                      }
+                      className="rounded border border-white/10 bg-slate-900 px-2 py-1 text-[11px] text-slate-200 outline-none"
+                    >
+                      {NODE_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t === "all" ? "All Types" : t}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
-                  {/* Confidence Filter */}
+                  {/* Visibility Filter */}
                   <div className="flex items-center gap-2">
-                    <Sparkles size={13} className="text-violet-400" />
-                    <span>Confidence:</span>
-                    {[
-                      { label: "All", val: 0 },
-                      { label: ">80%", val: 80 },
-                      { label: ">90%", val: 90 }
-                    ].map((conf) => (
+                    <Globe size={13} className="text-violet-400" />
+                    <span>Visibility:</span>
+                    {(["all", "PUBLIC", "PRIVATE"] as VisibilityFilter[]).map((v) => (
                       <button
-                        key={conf.label}
+                        key={v}
                         onClick={() =>
-                          setFilterState((prev) => ({ ...prev, minConfidence: conf.val }))
+                          setFilterState((prev) => ({ ...prev, visibility: v }))
                         }
-                        className={`rounded px-2 py-0.5 text-[11px] transition ${
-                          filterState.minConfidence === conf.val
+                        className={`capitalize rounded px-2 py-0.5 text-[11px] transition ${
+                          filterState.visibility === v
                             ? "bg-violet-500/20 text-violet-300 font-semibold border border-violet-500/40"
                             : "hover:bg-white/10 text-slate-400"
                         }`}
                       >
-                        {conf.label}
+                        {v}
                       </button>
                     ))}
                   </div>
 
-                  {/* Sort Filter */}
-                  <div className="flex items-center gap-2 ml-auto">
-                    <Filter size={13} className="text-emerald-400" />
-                    <span>Sort:</span>
-                    <select
-                      value={filterState.sortBy}
-                      onChange={(e) =>
+                  {/* Reset Filters */}
+                  {(filterState.nodeType !== "all" || filterState.visibility !== "all") && (
+                    <button
+                      onClick={() =>
                         setFilterState((prev) => ({
                           ...prev,
-                          sortBy: e.target.value as SortOption
+                          nodeType: "all",
+                          visibility: "all"
                         }))
                       }
-                      className="rounded border border-white/10 bg-slate-900 px-2 py-0.5 text-[11px] text-slate-200 outline-none"
+                      className="ml-auto flex items-center gap-1 text-[11px] text-cyan-400 hover:underline"
                     >
-                      <option value="relevance">Relevance</option>
-                      <option value="recent">Recently Updated</option>
-                      <option value="confidence">Highest Confidence</option>
-                      <option value="connections">Most Connected</option>
-                    </select>
-                  </div>
+                      <RotateCcw size={11} /> Clear filters
+                    </button>
+                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Category Filter Tabs with sliding active layout */}
+          {/* Category Filter Tabs */}
           <div className="flex items-center gap-1 overflow-x-auto border-b border-white/10 bg-black/20 px-3 py-2 scrollbar-none">
             {CATEGORY_TABS.map((tab) => {
               const Icon = tab.icon;
@@ -366,9 +345,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                   {count > 0 && (
                     <span
                       className={`relative z-10 rounded-full px-1.5 py-0.2 text-[10px] ${
-                        isActive
-                          ? "bg-cyan-400/20 text-cyan-200"
-                          : "bg-white/10 text-slate-400"
+                        isActive ? "bg-cyan-400/20 text-cyan-200" : "bg-white/10 text-slate-400"
                       }`}
                     >
                       {count}
@@ -379,12 +356,26 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
             })}
           </div>
 
-          {/* Main Results or Empty/Recent View Area */}
-          <div ref={resultsContainerRef} className="flex-1 overflow-y-auto p-3 space-y-4">
-            {/* View 1: Blank Query - Show Recent Searches and Popular Tag Search */}
-            {!query && !filterState.selectedTag && filterState.category === "all" ? (
+          {/* Main Results Container */}
+          <div ref={resultsContainerRef} className="flex-1 overflow-y-auto p-3 space-y-4 min-h-[220px]">
+            {/* Inviting Empty Search State */}
+            {!query && filterState.category === "all" ? (
               <div className="space-y-4 p-1">
-                {/* Recent Searches */}
+                {/* Friendly Header Banner */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/8 pb-3 px-1">
+                  <div>
+                    <h3 className="text-sm font-semibold text-slate-200">Search your graphs and knowledge</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Start typing to find something, or click Close to return to your workspace.</p>
+                  </div>
+                  <button
+                    onClick={closeSearch}
+                    className="self-start sm:self-auto text-xs font-medium text-cyan-400 hover:text-cyan-300 transition flex items-center gap-1 shrink-0"
+                    title="Close search modal"
+                  >
+                    Close search <X size={13} />
+                  </button>
+                </div>
+
                 {recentSearches.length > 0 && (
                   <div>
                     <div className="flex items-center justify-between px-2 pb-2">
@@ -426,94 +417,70 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                   </div>
                 )}
 
-                {/* Popular Tag Search */}
-                <div>
-                  <span className="flex items-center gap-1.5 px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    <Hash size={13} className="text-violet-400" /> Popular Knowledge Tags
-                  </span>
-                  <div className="flex flex-wrap gap-1.5 px-2">
-                    {tagSuggestions.map((tag) => {
-                      const isSelected = filterState.selectedTag === tag.name;
-                      return (
-                        <button
-                          key={tag.name}
-                          onClick={() => selectTag(tag.name)}
-                          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition ${
-                            isSelected
-                              ? "border-violet-500/60 bg-violet-950/60 text-violet-200 shadow-glow"
-                              : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-violet-500/40 hover:bg-white/[0.08]"
-                          }`}
-                        >
-                          <Hash size={12} className="text-violet-400" />
-                          <span>{tag.name}</span>
-                          <span className="rounded bg-white/10 px-1 py-0.2 text-[10px] text-slate-400">
-                            {tag.count}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* Quick Hint Card */}
                 <div className="rounded-xl border border-white/8 bg-gradient-to-r from-violet-950/20 via-cyan-950/20 to-slate-900/40 p-3 text-xs text-slate-400">
                   <div className="flex items-center gap-2 font-medium text-slate-200 pb-1">
-                    <Zap size={14} className="text-cyan-400" /> Pro Search Tips
+                    <Zap size={14} className="text-cyan-400" /> Quick Search Tips
                   </div>
                   <ul className="space-y-1 list-disc list-inside text-[11px] text-slate-400">
-                    <li>Type <code className="text-cyan-300 font-mono">&gt;</code> to jump into Command Mode (e.g. <code className="text-slate-300">&gt; create node</code>)</li>
-                    <li>Type <code className="text-violet-300 font-mono">#</code> to search knowledge graph tags directly</li>
-                    <li>Use <kbd className="bg-white/10 px-1 rounded text-slate-300">Tab</kbd> to cycle categories or <kbd className="bg-white/10 px-1 rounded text-slate-300">↑↓</kbd> to navigate results</li>
+                    <li>Search for graphs by title or description (e.g. <code className="text-cyan-300 font-mono">Spring</code>)</li>
+                    <li>Search for knowledge nodes directly across all authorized workspaces</li>
+                    <li>Type <code className="text-cyan-300 font-mono">&gt;</code> to jump into Command Mode</li>
                   </ul>
                 </div>
               </div>
             ) : isSearchLoading ? (
-              <div className="flex items-center justify-center py-12 text-sm text-cyan-300">
-                <Search size={18} className="mr-2 animate-pulse" /> Searching...
+              /* Loading State */
+              <div className="flex items-center justify-center py-16 text-sm text-cyan-300">
+                <Search size={18} className="mr-2 animate-pulse" /> Searching knowledge network...
               </div>
             ) : isSearchError ? (
+              /* Error State with Retry */
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <HelpCircle size={22} className="mb-3 text-rose-300" />
-                <h4 className="text-sm font-semibold text-slate-200">Search failed</h4>
-                <p className="mt-1 max-w-sm text-xs text-slate-400">{(searchError as Error)?.message ?? "Unable to search the workspace."}</p>
+                <HelpCircle size={24} className="mb-3 text-rose-400" />
+                <h4 className="text-sm font-semibold text-slate-200">Search Failed</h4>
+                <p className="mt-1 max-w-sm text-xs text-slate-400">
+                  {(searchError as Error)?.message || "Could not retrieve search results from server."}
+                </p>
+                <button
+                  onClick={() => refetchSearch()}
+                  className="mt-4 flex items-center gap-1.5 rounded-lg border border-cyan-500/40 bg-cyan-950/40 px-3 py-1.5 text-xs text-cyan-300 hover:bg-cyan-900/40 transition"
+                >
+                  <RotateCcw size={13} /> Retry Search
+                </button>
               </div>
             ) : suggestions.length === 0 ? (
-              /* View 2: No Search Results Found */
+              /* Empty State */
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] text-slate-400 mb-3">
                   <HelpCircle size={22} />
                 </div>
-                <h4 className="text-sm font-semibold text-slate-200">No matching search results</h4>
+                <h4 className="text-sm font-semibold text-slate-200">No results found</h4>
                 <p className="mt-1 text-xs text-slate-400 max-w-sm">
-                  We couldn't find any graph entities or commands matching "{cleanQuery}". Try adjusting your filters or search keywords.
+                  We couldn't find any graph entities matching "{cleanQuery}". Try adjusting your filters or keywords.
                 </p>
                 <div className="mt-4 flex gap-2">
                   <button
                     onClick={() => {
                       setQuery("");
-                      setFilterState({
-                        category: "all",
-                        dateRange: "any",
-                        minConfidence: 0,
-                        sortBy: "relevance"
-                      });
+                      setFilterState({ category: "all", nodeType: "all", visibility: "all" });
                     }}
-                    className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-slate-300 hover:bg-white/10"
+                    className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-slate-300 hover:bg-white/10 transition"
                   >
-                    <RotateCcw size={13} /> Reset search filters
+                    <RotateCcw size={13} /> Reset search
                   </button>
                 </div>
               </div>
             ) : (
-              /* View 3: Suggestions & Search Results List */
+              /* Results List */
               <div className="space-y-1.5">
-                {suggestions.map((item, idx) => {
+                {suggestions.map((item: SearchResultItem, idx: number) => {
                   const isSelected = idx === selectedIndex;
-                  const ItemIcon = getItemIcon(item.category, item.type);
+                  const ItemIcon = getItemIcon(item.resultType, item.nodeTypeName);
 
                   return (
                     <div
-                      key={item.id}
+                      key={`${item.resultType}-${item.id}`}
                       data-index={idx}
                       onClick={() => handleSelectItem(item)}
                       onMouseEnter={() => setSelectedIndex(idx)}
@@ -535,69 +502,68 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                         </div>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium text-sm text-slate-100 truncate">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm text-slate-100 truncate">
                               {item.title}
                             </span>
 
-                            {item.type && (
-                              <span className="rounded border border-white/10 bg-white/5 px-1.5 py-0.2 text-[10px] font-mono text-slate-400">
-                                {item.type}
+                            {/* Result Type Badge */}
+                            <span
+                              className={`rounded border px-1.5 py-0.2 text-[10px] font-mono uppercase tracking-wider ${
+                                item.resultType === "GRAPH"
+                                  ? "border-cyan-500/40 bg-cyan-950/60 text-cyan-300"
+                                  : item.resultType === "NODE"
+                                  ? "border-violet-500/40 bg-violet-950/60 text-violet-300"
+                                  : "border-slate-500/40 bg-slate-900 text-slate-300"
+                              }`}
+                            >
+                              {item.resultType}
+                            </span>
+
+                            {/* Node Type Badge */}
+                            {item.nodeTypeName && (
+                              <span
+                                className="rounded border border-white/10 px-1.5 py-0.2 text-[10px] font-medium"
+                                style={{
+                                  backgroundColor: item.nodeTypeColor ? `${item.nodeTypeColor}20` : undefined,
+                                  borderColor: item.nodeTypeColor ? `${item.nodeTypeColor}50` : undefined,
+                                  color: item.nodeTypeColor || "#CBD5E1"
+                                }}
+                              >
+                                {item.nodeTypeName}
                               </span>
                             )}
 
-                            {item.shortcut && (
-                              <span className="ml-auto rounded border border-cyan-500/30 bg-cyan-950/50 px-1.5 py-0.5 font-mono text-[10px] text-cyan-300">
-                                {item.shortcut}
+                            {/* Parent Graph Badge */}
+                            {item.resultType === "NODE" && item.graphTitle && (
+                              <span className="flex items-center gap-1 text-[11px] text-slate-400 ml-auto">
+                                <Folder size={11} className="text-cyan-400" />
+                                <span className="truncate max-w-[150px]">{item.graphTitle}</span>
                               </span>
                             )}
 
-                            {item.confidence !== undefined && (
-                              <span className="ml-auto hidden sm:inline-block rounded border border-emerald-500/30 bg-emerald-950/40 px-1.5 py-0.2 text-[10px] font-semibold text-emerald-300">
-                                {item.confidence}% confidence
-                              </span>
+                            {/* Visibility / Graph Node Count */}
+                            {item.resultType === "GRAPH" && (
+                              <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-400">
+                                {item.visibility === "PUBLIC" ? (
+                                  <span className="flex items-center gap-0.5 text-emerald-400">
+                                    <Globe size={11} /> Public
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-0.5 text-slate-400">
+                                    <Lock size={11} /> Private
+                                  </span>
+                                )}
+                                <span>• {item.nodeCount ?? 0} nodes</span>
+                                <span>• {item.edgeCount ?? 0} edges</span>
+                              </div>
                             )}
                           </div>
-
-                          {item.subtitle && (
-                            <p className="mt-0.5 text-xs text-slate-400 truncate">
-                              {item.subtitle}
-                            </p>
-                          )}
 
                           {item.description && (
                             <p className="mt-1 text-xs text-slate-400 line-clamp-2 leading-relaxed">
                               {item.description}
                             </p>
-                          )}
-
-                          {/* Graph Path Preview for Edges */}
-                          {item.category === "edges" && (
-                            <GraphPathPreview
-                              sourceNode={item.sourceNode}
-                              targetNode={item.targetNode}
-                              relationshipType={item.type}
-                              confidence={item.confidence}
-                            />
-                          )}
-
-                          {/* Tags row */}
-                          {item.tags && item.tags.length > 0 && (
-                            <div className="mt-2 flex flex-wrap items-center gap-1">
-                              {item.tags.map((t) => (
-                                <button
-                                  key={t}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    selectTag(t);
-                                  }}
-                                  className="inline-flex items-center gap-0.5 rounded bg-violet-950/40 border border-violet-500/20 px-1.5 py-0.2 text-[10px] font-medium text-violet-300 hover:border-violet-500/50"
-                                >
-                                  <Hash size={10} />
-                                  {t}
-                                </button>
-                              ))}
-                            </div>
                           )}
                         </div>
 
@@ -619,7 +585,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
             )}
           </div>
 
-          {/* Footer keyboard hints bar */}
+          {/* Footer keyboard hints */}
           <div className="flex flex-wrap items-center justify-between border-t border-white/10 bg-black/40 px-4 py-2 text-[11px] text-slate-400">
             <div className="flex items-center gap-3">
               <span className="flex items-center gap-1">
@@ -630,14 +596,14 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                 <kbd className="rounded border border-white/10 bg-white/10 px-1 font-mono text-[10px]">↵</kbd>
                 Select
               </span>
-              <span className="flex items-center gap-1 hidden sm:inline-flex">
-                <kbd className="rounded border border-white/10 bg-white/10 px-1 font-mono text-[10px]">Tab</kbd>
-                Filter Category
+              <span className="flex items-center gap-1">
+                <kbd className="rounded border border-white/10 bg-white/10 px-1 font-mono text-[10px]">Esc</kbd>
+                or Click <X size={11} className="inline text-slate-300" /> Close
               </span>
             </div>
 
             <div className="flex items-center gap-2 text-slate-400">
-              <span className="hidden sm:inline">Knowledge Network Advanced Search</span>
+              <span className="hidden sm:inline">Knowledge Network Unified Search</span>
               <span className="rounded border border-cyan-500/30 bg-cyan-950/40 px-1.5 py-0.2 font-mono text-[10px] text-cyan-300">
                 v2.0
               </span>
@@ -648,4 +614,3 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
     </AnimatePresence>
   );
 }
-

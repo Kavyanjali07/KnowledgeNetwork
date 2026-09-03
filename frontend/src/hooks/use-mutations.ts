@@ -46,14 +46,28 @@ export function useCreateNode(workspaceId: string) {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
   return useMutation({
-    mutationFn: (req: { nodeTypeId?: string; label: string; attributes: Record<string, unknown> }) =>
-      nodeApi.create(workspaceId, req.nodeTypeId, req.label, req.attributes),
-    onSuccess: () => {
+    mutationFn: (req: {
+      nodeTypeId?: string;
+      label: string;
+      attributes: Record<string, unknown>;
+      positionX?: number;
+      positionY?: number;
+    }) =>
+      nodeApi.create(workspaceId, req.nodeTypeId, req.label, req.attributes, req.positionX, req.positionY),
+    onSuccess: (response) => {
+      queryClient.setQueryData<WorkspaceNodesQuery>(["workspace-nodes", workspaceId], (current) => {
+        if (!current) return { nodes: [response.data], total: 1 };
+        return {
+          ...current,
+          nodes: [...current.nodes.filter((n) => n.id !== response.data.id), response.data],
+          total: (current.total || current.nodes.length) + 1
+        };
+      });
       queryClient.invalidateQueries({ queryKey: ["workspace-nodes", workspaceId] });
     },
-      onError: (error: any) => {
-        addToast({ type: "error", title: "Failed to create node", description: error.message });
-      }
+    onError: (error: any) => {
+      addToast({ type: "error", title: "Failed to create node", description: error.message });
+    }
   });
 }
 
@@ -61,8 +75,23 @@ export function useUpdateNode(workspaceId: string) {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
   return useMutation({
-    mutationFn: (req: { nodeId: string; label: string; attributes: Record<string, unknown>; version: number }) =>
-      nodeApi.update(workspaceId, req.nodeId, req.label, req.attributes, req.version),
+    mutationFn: (req: {
+      nodeId: string;
+      label?: string;
+      attributes?: Record<string, unknown>;
+      version: number;
+      positionX?: number;
+      positionY?: number;
+    }) =>
+      nodeApi.update(
+        workspaceId,
+        req.nodeId,
+        req.label || "",
+        req.attributes || {},
+        req.version,
+        req.positionX,
+        req.positionY
+      ),
     onMutate: async (request) => {
       await queryClient.cancelQueries({ queryKey: ["workspace-nodes", workspaceId] });
       const queryKey = ["workspace-nodes", workspaceId] as const;
@@ -71,9 +100,18 @@ export function useUpdateNode(workspaceId: string) {
         if (!current) return current;
         return {
           ...current,
-          nodes: current.nodes.map((node) => node.id === request.nodeId
-            ? { ...node, label: request.label, attributes: request.attributes }
-            : node)
+          nodes: current.nodes.map((node) =>
+            node.id === request.nodeId
+              ? {
+                  ...node,
+                  label: request.label !== undefined && request.label !== "" ? request.label : node.label,
+                  positionX: request.positionX !== undefined ? request.positionX : node.positionX,
+                  positionY: request.positionY !== undefined ? request.positionY : node.positionY,
+                  attributes: request.attributes ? { ...node.attributes, ...request.attributes } : node.attributes,
+                  version: (node.version ?? 0) + 1
+                }
+              : node
+          )
         };
       });
       return { previous };
@@ -81,15 +119,21 @@ export function useUpdateNode(workspaceId: string) {
     onSuccess: (response) => {
       queryClient.setQueryData<WorkspaceNodesQuery>(["workspace-nodes", workspaceId], (current) => {
         if (!current) return current;
-        return { ...current, nodes: current.nodes.map((node) => node.id === response.data.id ? response.data : node) };
+        return {
+          ...current,
+          nodes: current.nodes.map((node) => (node.id === response.data.id ? response.data : node))
+        };
       });
-      queryClient.invalidateQueries({ queryKey: ["workspace-nodes", workspaceId] });
     },
     onError: (error: any, _request, context) => {
       if (context?.previous) {
         queryClient.setQueryData(["workspace-nodes", workspaceId], context.previous);
       }
+      if (error?.status === 409 || error?.code === "CONFLICT") {
+        addToast({ type: "error", title: "Version conflict", description: "This item was changed elsewhere. Refresh the latest version and try again." });
+      } else {
         addToast({ type: "error", title: "Failed to update node", description: error.message });
+      }
     }
   });
 }

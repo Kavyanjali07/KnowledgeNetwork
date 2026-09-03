@@ -50,6 +50,7 @@ export function GraphInspector({
   const [edgeDescription, setEdgeDescription] = useState("");
 
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const updateNodeMutation = useUpdateNode(workspaceId);
   const deleteNodeMutation = useDeleteNode(workspaceId);
@@ -63,12 +64,14 @@ export function GraphInspector({
       setNodeDescription(nodeData.description || "");
       setIsEditing(false);
       setError(null);
+      setConfirmDelete(false);
     } else if (selectedEdge) {
       setEdgeType(edgeData?.relationshipType || "RELATED_TO");
       setEdgeLabel(edgeData?.label || (selectedEdge.label as string) || "");
       setEdgeDescription(edgeData?.description || "");
       setIsEditing(false);
       setError(null);
+      setConfirmDelete(false);
     }
   }, [selectedNode?.id, selectedEdge?.id, nodeData?.title, nodeData?.description, edgeData?.relationshipType, edgeData?.label, edgeData?.description]);
 
@@ -83,6 +86,8 @@ export function GraphInspector({
       await updateNodeMutation.mutateAsync({
         nodeId: selectedNode.id,
         label: nodeTitle.trim(),
+        positionX: selectedNode.position.x,
+        positionY: selectedNode.position.y,
         attributes: {
           description: nodeDescription.trim(),
           confidence: nodeData?.confidence ?? 50,
@@ -94,7 +99,11 @@ export function GraphInspector({
       });
       setIsEditing(false);
     } catch (err: any) {
-      setError(err.message || "Failed to update node");
+      if (err?.status === 409 || err?.code === "CONFLICT") {
+        setError("This item was changed elsewhere. Refresh the latest version and try again.");
+      } else {
+        setError(err.message || "Failed to update node");
+      }
     }
   };
 
@@ -112,25 +121,41 @@ export function GraphInspector({
       });
       setIsEditing(false);
     } catch (err: any) {
-      setError(err.message || "Failed to update connection");
+      if (err?.status === 409 || err?.code === "CONFLICT") {
+        setError("This connection was changed elsewhere. Refresh the latest version and try again.");
+      } else {
+        setError(err.message || "Failed to update connection");
+      }
     }
   };
 
   const handleDeleteNode = async () => {
     if (!selectedNode) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     try {
       await deleteNodeMutation.mutateAsync(selectedNode.id);
+      setConfirmDelete(false);
     } catch (err: any) {
       setError(err.message || "Failed to delete node");
+      setConfirmDelete(false);
     }
   };
 
   const handleDeleteEdge = async () => {
     if (!selectedEdge) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
     try {
       await deleteEdgeMutation.mutateAsync(selectedEdge.id);
+      setConfirmDelete(false);
     } catch (err: any) {
       setError(err.message || "Failed to delete connection");
+      setConfirmDelete(false);
     }
   };
 
@@ -264,16 +289,42 @@ export function GraphInspector({
               </div>
 
               <div className="mt-4 border-t border-white/10 pt-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleDeleteNode}
-                  disabled={deleteNodeMutation.isPending}
-                  className="w-full h-8 justify-center gap-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
-                >
-                  {deleteNodeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                  Delete Node
-                </Button>
+                {confirmDelete ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-rose-300">Delete this node and its connections?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setConfirmDelete(false)}
+                        className="flex-1 h-7 text-xs"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleDeleteNode}
+                        disabled={deleteNodeMutation.isPending}
+                        className="flex-1 h-7 text-xs font-semibold text-rose-300 hover:bg-rose-500/10"
+                      >
+                        {deleteNodeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        Confirm
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleDeleteNode}
+                    disabled={deleteNodeMutation.isPending}
+                    className="w-full h-8 justify-center gap-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+                  >
+                    {deleteNodeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    Delete Node
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -395,16 +446,42 @@ export function GraphInspector({
               </div>
 
               <div className="mt-4 border-t border-white/10 pt-3">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={handleDeleteEdge}
-                  disabled={deleteEdgeMutation.isPending}
-                  className="w-full h-8 justify-center gap-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
-                >
-                  {deleteEdgeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                  Delete Relationship
-                </Button>
+                {confirmDelete ? (
+                  <div className="space-y-2">
+                    <p className="text-xs text-rose-300">Delete this connection?</p>
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setConfirmDelete(false)}
+                        className="flex-1 h-7 text-xs"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={handleDeleteEdge}
+                        disabled={deleteEdgeMutation.isPending}
+                        className="flex-1 h-7 text-xs font-semibold text-rose-300 hover:bg-rose-500/10"
+                      >
+                        {deleteEdgeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                        Confirm
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={handleDeleteEdge}
+                    disabled={deleteEdgeMutation.isPending}
+                    className="w-full h-8 justify-center gap-2 text-xs font-semibold text-rose-300 hover:bg-rose-500/10 hover:text-rose-200"
+                  >
+                    {deleteEdgeMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    Delete Relationship
+                  </Button>
+                )}
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 package com.knowledgenetwork.domain.model;
 
+import com.knowledgenetwork.domain.enums.OtpType;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -24,6 +25,10 @@ public class VerificationOtp {
 
     @Column(name = "used", nullable = false)
     private boolean used = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "otp_type", nullable = false)
+    private OtpType otpType = OtpType.EMAIL_VERIFICATION;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -88,6 +93,14 @@ public class VerificationOtp {
 
     public void setUsed(boolean used) {
         this.used = used;
+    }
+
+    public OtpType getOtpType() {
+        return otpType;
+    }
+
+    public void setOtpType(OtpType otpType) {
+        this.otpType = otpType;
     }
 
     public Instant getCreatedAt() {

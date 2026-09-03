@@ -83,10 +83,27 @@ public class NodeService {
             attributes.put("description", request.getContent().trim());
         }
 
-        Double posX = request.getPositionX() != null ? request.getPositionX() :
-                attributes.containsKey("positionX") ? Double.parseDouble(attributes.get("positionX").toString()) : 120.0;
-        Double posY = request.getPositionY() != null ? request.getPositionY() :
-                attributes.containsKey("positionY") ? Double.parseDouble(attributes.get("positionY").toString()) : 120.0;
+        Double posX = request.getPositionX();
+        if (posX == null && attributes.containsKey("positionX") && attributes.get("positionX") != null) {
+            try {
+                posX = Double.parseDouble(attributes.get("positionX").toString());
+            } catch (Exception ignored) {}
+        }
+
+        Double posY = request.getPositionY();
+        if (posY == null && attributes.containsKey("positionY") && attributes.get("positionY") != null) {
+            try {
+                posY = Double.parseDouble(attributes.get("positionY").toString());
+            } catch (Exception ignored) {}
+        }
+
+        if (posX == null || posY == null) {
+            long existingCount = nodeRepository.countByWorkspaceAndIsDeletedFalse(workspace);
+            int col = (int) (existingCount % 3);
+            int row = (int) (existingCount / 3);
+            if (posX == null) posX = 100.0 + (col * 300.0);
+            if (posY == null) posY = 100.0 + (row * 200.0);
+        }
 
         attributes.put("positionX", posX);
         attributes.put("positionY", posY);
@@ -174,14 +191,26 @@ public class NodeService {
             attributes.put("description", request.getContent().trim());
         }
 
-        if (request.getPositionX() != null) {
-            node.setPositionX(request.getPositionX());
-            attributes.put("positionX", request.getPositionX());
+        Double posX = request.getPositionX();
+        if (posX == null && request.getAttributes() != null && request.getAttributes().containsKey("positionX") && request.getAttributes().get("positionX") != null) {
+            try {
+                posX = Double.parseDouble(request.getAttributes().get("positionX").toString());
+            } catch (Exception ignored) {}
+        }
+        if (posX != null) {
+            node.setPositionX(posX);
+            attributes.put("positionX", posX);
         }
 
-        if (request.getPositionY() != null) {
-            node.setPositionY(request.getPositionY());
-            attributes.put("positionY", request.getPositionY());
+        Double posY = request.getPositionY();
+        if (posY == null && request.getAttributes() != null && request.getAttributes().containsKey("positionY") && request.getAttributes().get("positionY") != null) {
+            try {
+                posY = Double.parseDouble(request.getAttributes().get("positionY").toString());
+            } catch (Exception ignored) {}
+        }
+        if (posY != null) {
+            node.setPositionY(posY);
+            attributes.put("positionY", posY);
         }
 
         node.setAttributes(attributes);

@@ -13,8 +13,9 @@ import {
   useReactFlow
 } from "@xyflow/react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, AlertTriangle, Plus, X } from "lucide-react";
+import { Loader2, AlertTriangle, Plus, X, Sparkles, GripVertical, Link2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import "@xyflow/react/dist/style.css";
 import { nodeTypeApi } from "../../../services";
@@ -46,9 +47,57 @@ const nodeTypes = {
   knowledgeNode: KnowledgeNode
 };
 
+/**
+ * Deterministic helper to calculate a non-overlapping graph coordinate for newly created nodes.
+ */
+export function getNextAvailableNodePosition(existingNodes: Array<{ position: { x: number; y: number } }>): { x: number; y: number } {
+  if (!existingNodes || existingNodes.length === 0) {
+    return { x: 100, y: 100 };
+  }
+
+  const startX = 100;
+  const startY = 100;
+  const stepX = 300;
+  const stepY = 200;
+  const maxCols = 3;
+
+  for (let i = 0; i < 100; i++) {
+    const col = i % maxCols;
+    const row = Math.floor(i / maxCols);
+    const candidateX = startX + col * stepX;
+    const candidateY = startY + row * stepY;
+
+    const isOccupied = existingNodes.some((n) => {
+      const dx = Math.abs(n.position.x - candidateX);
+      const dy = Math.abs(n.position.y - candidateY);
+      return dx < 150 && dy < 100;
+    });
+
+    if (!isOccupied) {
+      return { x: candidateX, y: candidateY };
+    }
+  }
+
+  const count = existingNodes.length;
+  return {
+    x: startX + (count % maxCols) * stepX,
+    y: startY + Math.floor(count / maxCols) * stepY
+  };
+}
+
 function mapApiNodeToReactFlowNode(apiNode: NodeResponse): Node<KnowledgeNodeData, "knowledgeNode"> {
-  const posX = apiNode.positionX ?? Number(apiNode.attributes?.positionX ?? 120);
-  const posY = apiNode.positionY ?? Number(apiNode.attributes?.positionY ?? 120);
+  const posX = typeof apiNode.positionX === "number" && Number.isFinite(apiNode.positionX)
+    ? apiNode.positionX
+    : typeof apiNode.attributes?.positionX === "number" && Number.isFinite(Number(apiNode.attributes.positionX))
+    ? Number(apiNode.attributes.positionX)
+    : 100;
+
+  const posY = typeof apiNode.positionY === "number" && Number.isFinite(apiNode.positionY)
+    ? apiNode.positionY
+    : typeof apiNode.attributes?.positionY === "number" && Number.isFinite(Number(apiNode.attributes.positionY))
+    ? Number(apiNode.attributes.positionY)
+    : 100;
+
   const nodeTypeName = apiNode.nodeTypeName || (apiNode.attributes?.type as string) || "Concept";
 
   return {
@@ -94,6 +143,10 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
   const [connectionMode, setConnectionMode] = useState(false);
   const [autosaveState, setAutosaveState] = useState<AutosaveState>("saved");
   const [inspectorWidth, setInspectorWidth] = useState(360);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "node" | "edge"; id: string; label: string } | null>(null);
+
+  // Track whether initial fitView has fired
+  const hasFittedOnLoad = useRef(false);
 
   // Create Node Modal state
   const [isCreateNodeOpen, setIsCreateNodeOpen] = useState(false);
@@ -141,13 +194,37 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
   const [internalNodes, setNodes, onNodesChange] = useNodesState(nodes);
   const [internalEdges, setEdges, onEdgesChange] = useEdgesState(edges);
 
-  useEffect(() => {
-    setNodes(nodes);
-  }, [nodes, setNodes]);
-
+  // Sync edges cleanly with backend list
   useEffect(() => {
     setEdges(edges);
   }, [edges, setEdges]);
+
+  // Reconcile server nodes with internalNodes without overwriting active drags or local state
+  const prevNodeListRef = useRef<NodeResponse[] | null>(null);
+  useEffect(() => {
+    if (!nodeListResponse?.nodes) return;
+    const serverNodes = nodeListResponse.nodes;
+
+    if (prevNodeListRef.current === serverNodes) return;
+    prevNodeListRef.current = serverNodes;
+
+    setNodes((currentNodes) => {
+      const currentMap = new Map(currentNodes.map((n) => [n.id, n]));
+      return serverNodes.map((serverNode) => {
+        const mapped = mapApiNodeToReactFlowNode(serverNode);
+        const existingLocal = currentMap.get(serverNode.id);
+        if (existingLocal) {
+          return {
+            ...mapped,
+            selected: existingLocal.selected,
+            dragging: existingLocal.dragging,
+            position: existingLocal.dragging ? existingLocal.position : mapped.position
+          };
+        }
+        return mapped;
+      });
+    });
+  }, [nodeListResponse, setNodes]);
 
   const selectedNode = internalNodes.find((node) => node.selected);
   const selectedEdge = internalEdges.find((edge) => edge.selected);
@@ -163,7 +240,6 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
     queryKey: ["node-types", workspaceId],
     queryFn: () => nodeTypeApi.list(workspaceId).then((r) => r.data as any)
   });
-
 
   const createEdgeMutation = useCreateEdge(workspaceId);
   const deleteNodeMutation = useDeleteNode(workspaceId);
@@ -229,18 +305,15 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
     }
     setCreateError(null);
 
-    const viewportCenter = reactFlow.screenToFlowPosition({
-      x: window.innerWidth / 2,
-      y: window.innerHeight / 2
-    });
-
-    const targetPos = createPos || viewportCenter;
+    const targetPos = createPos || getNextAvailableNodePosition(internalNodes);
     const selectedTypeId = createNodeTypeId || nodeTypeListResponse?.[0]?.id;
 
     try {
       await addNodeMutation.mutateAsync({
         nodeTypeId: selectedTypeId,
         label: createTitle.trim(),
+        positionX: targetPos.x,
+        positionY: targetPos.y,
         attributes: {
           description: createDescription.trim(),
           confidence: 85,
@@ -255,7 +328,7 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
     }
   };
 
-  const deleteSelected = useCallback(() => {
+  const executeDelete = useCallback(() => {
     const selectedIds = new Set(internalNodes.filter((node) => node.selected).map((node) => node.id));
     const selectedEdgeIds = internalEdges.filter((edge) =>
       edge.selected || selectedIds.has(edge.source) || selectedIds.has(edge.target)
@@ -272,18 +345,66 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
     selectedEdgeIds.forEach((id) => deleteEdgeMutation.mutate(id));
   }, [internalEdges, internalNodes, setEdges, setNodes, deleteNodeMutation, deleteEdgeMutation]);
 
+  const deleteSelected = useCallback(() => {
+    const selNode = internalNodes.find((n) => n.selected);
+    const selEdge = internalEdges.find((e) => e.selected);
+    if (selNode) {
+      setDeleteConfirm({ type: "node", id: selNode.id, label: (selNode.data as KnowledgeNodeData).title || selNode.id });
+    } else if (selEdge) {
+      setDeleteConfirm({ type: "edge", id: selEdge.id, label: (selEdge.label as string) || selEdge.id });
+    } else {
+      executeDelete();
+    }
+  }, [internalNodes, internalEdges, executeDelete]);
+
   const fitView = useCallback(() => {
     reactFlow.fitView({ padding: 0.18, duration: 500 });
   }, [reactFlow]);
 
+  // fitView once after initial data loads
   useEffect(() => {
-    setAutosaveState("saving");
-    const timeout = window.setTimeout(() => {
-      setAutosaveState("saved");
-    }, 650);
+    if (!hasFittedOnLoad.current && !isNodesLoading && !isEdgesLoading && internalNodes.length > 0) {
+      hasFittedOnLoad.current = true;
+      // Small delay to let React Flow measure nodes
+      const timer = window.setTimeout(() => {
+        reactFlow.fitView({ padding: 0.18, duration: 400 });
+      }, 100);
+      return () => { window.clearTimeout(timer); };
+    }
+    return undefined;
+  }, [isNodesLoading, isEdgesLoading, internalNodes.length, reactFlow]);
 
-    return () => window.clearTimeout(timeout);
-  }, [internalNodes, internalEdges]);
+  // Handle focusing target node passed via search parameter ?nodeId=...
+  const [searchParams] = useSearchParams();
+  const targetNodeId = searchParams.get("nodeId");
+  const focusedNodeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!targetNodeId || internalNodes.length === 0) return;
+    if (focusedNodeIdRef.current === targetNodeId) return;
+
+    const targetNode = internalNodes.find((n) => n.id === targetNodeId);
+    if (!targetNode) return;
+
+    focusedNodeIdRef.current = targetNodeId;
+    hasFittedOnLoad.current = true;
+
+    setNodes((current) =>
+      current.map((n) => ({
+        ...n,
+        selected: n.id === targetNodeId
+      }))
+    );
+
+    const timer = window.setTimeout(() => {
+      reactFlow.setCenter(targetNode.position.x + 100, targetNode.position.y + 50, {
+        zoom: 1.25,
+        duration: 600
+      });
+    }, 150);
+
+    return () => { window.clearTimeout(timer); };
+  }, [targetNodeId, internalNodes, setNodes, reactFlow]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -305,9 +426,13 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
         fitView();
       }
 
-      if (event.key === "Delete" || event.key === "Backspace") {
+      if ((event.key === "Delete" || event.key === "Backspace") && !deleteConfirm) {
         event.preventDefault();
         deleteSelected();
+      }
+
+      if (event.key === "Escape" && deleteConfirm) {
+        setDeleteConfirm(null);
       }
     }
 
@@ -409,9 +534,12 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
           onNodeDragStop={(_, node) => {
             const typedNode = node as Node<KnowledgeNodeData, "knowledgeNode">;
             if (!typedNode.id.startsWith("node-") && typedNode.data.version !== undefined) {
+              setAutosaveState("saving");
               updateNodeMutation.mutate({
                 nodeId: typedNode.id,
                 label: typedNode.data.title,
+                positionX: typedNode.position.x,
+                positionY: typedNode.position.y,
                 attributes: {
                   description: typedNode.data.description,
                   confidence: typedNode.data.confidence,
@@ -420,13 +548,19 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
                   positionY: typedNode.position.y
                 },
                 version: typedNode.data.version ?? 0
+              }, {
+                onSuccess: () => setAutosaveState("saved"),
+                onError: (error: any) => {
+                  setAutosaveState("saved");
+                  if (error?.status === 409 || error?.code === "CONFLICT") {
+                    addToast({ type: "error", title: "Position conflict", description: "This node was changed elsewhere. Refresh and try again." });
+                  }
+                }
               });
             }
           }}
           onConnect={onConnect}
           defaultEdgeOptions={defaultEdgeOptions}
-          fitView
-          fitViewOptions={{ padding: 0.18 }}
           proOptions={{ hideAttribution: true }}
           minZoom={0.18}
           maxZoom={1.8}
@@ -477,6 +611,45 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
             />
           )}
         </AnimatePresence>
+
+        {/* Empty graph guided experience */}
+        {!isLoading && internalNodes.length === 0 && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+            <div className="pointer-events-auto max-w-md text-center space-y-5 rounded-2xl border border-white/10 bg-[rgba(8,12,20,0.92)] p-8 shadow-glass backdrop-blur-2xl">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400/20 to-violet-500/20 border border-cyan-400/30">
+                <Sparkles size={24} className="text-cyan-300" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-100">Your graph is empty</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Start by adding your first idea, concept, document, person, or decision.
+                </p>
+              </div>
+              <Button
+                className="bg-cyan-500 text-slate-950 font-semibold hover:bg-cyan-400 gap-2"
+                onClick={() => openCreateModal()}
+              >
+                <Plus size={16} />
+                Add First Node
+              </Button>
+              <div className="space-y-2 pt-3 border-t border-white/10 text-left">
+                <p className="text-xs font-semibold uppercase text-slate-400 tracking-wider">Quick start</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[10px] font-bold text-cyan-300">1</span>
+                  Add a node to capture an idea
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[10px] font-bold text-cyan-300">2</span>
+                  <GripVertical size={11} className="inline text-slate-500" /> Drag nodes to organize
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-md border border-white/10 bg-white/5 text-[10px] font-bold text-cyan-300">3</span>
+                  <Link2 size={11} className="inline text-slate-500" /> Connect related nodes
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <GraphInspector
@@ -603,6 +776,36 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
                   </Button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {deleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm rounded-2xl border border-white/10 bg-[rgba(10,15,28,0.96)] p-6 shadow-2xl backdrop-blur-2xl"
+            >
+              <h3 className="text-lg font-semibold text-slate-100">Delete {deleteConfirm.type}?</h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Are you sure you want to delete <span className="font-medium text-slate-200">&ldquo;{deleteConfirm.label}&rdquo;</span>?
+                {deleteConfirm.type === "node" && " Connected edges will also be removed."}
+                {" "}This action cannot be undone.
+              </p>
+              <div className="mt-5 flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
+                <Button
+                  className="bg-rose-500 text-white font-semibold hover:bg-rose-400 gap-2"
+                  onClick={() => { executeDelete(); setDeleteConfirm(null); }}
+                >
+                  Delete
+                </Button>
+              </div>
             </motion.div>
           </div>
         )}
