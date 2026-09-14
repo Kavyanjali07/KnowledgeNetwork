@@ -63,6 +63,9 @@ class EdgeServiceTest {
     @Mock
     private EdgeMapper edgeMapper;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private EdgeService edgeService;
 

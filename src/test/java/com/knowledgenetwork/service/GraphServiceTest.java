@@ -66,6 +66,9 @@ class GraphServiceTest {
     @Mock
     private GraphMapper graphMapper;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private GraphService graphService;
 

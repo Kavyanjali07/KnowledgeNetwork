@@ -1,0 +1,43 @@
+package com.knowledgenetwork.domain.enums;
+
+public enum AuditAction {
+    // Authentication
+    LOGIN_SUCCESS,
+    LOGIN_FAILURE,
+    LOGOUT,
+    EMAIL_VERIFIED,
+    PASSWORD_RESET_REQUESTED,
+    PASSWORD_RESET_COMPLETED,
+
+    // Workspace
+    WORKSPACE_CREATED,
+    WORKSPACE_UPDATED,
+    WORKSPACE_DELETED,
+    MEMBER_ADDED,
+    MEMBER_REMOVED,
+    MEMBER_ROLE_CHANGED,
+
+    // Graph
+    GRAPH_CREATED,
+    GRAPH_UPDATED,
+    GRAPH_DELETED,
+
+    // Node
+    NODE_CREATED,
+    NODE_UPDATED,
+    NODE_DELETED,
+
+    // Relationship
+    RELATIONSHIP_CREATED,
+    RELATIONSHIP_UPDATED,
+    RELATIONSHIP_DELETED,
+
+    // Graph Versioning
+    GRAPH_VERSION_CREATED,
+    GRAPH_VERSION_RESTORED,
+    GRAPH_FORKED,
+
+    // Social
+    POST_CREATED,
+    POST_DELETED
+}

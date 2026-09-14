@@ -118,6 +118,12 @@ export function LoginForm() {
               <input type="checkbox" className="h-4 w-4 rounded border-white/10 bg-white/10 accent-cyan-300" />
               Remember me
             </label>
+            <Link
+              to="/forgot-password"
+              className="font-medium text-cyan-300 hover:text-cyan-200 transition-colors"
+            >
+              Forgot password?
+            </Link>
           </div>
 
           <Button type="submit" className="w-full" disabled={!isValid || isSubmitting}>

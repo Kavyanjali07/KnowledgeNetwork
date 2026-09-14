@@ -18,6 +18,8 @@ import com.knowledgenetwork.repository.EdgeTypeRepository;
 import com.knowledgenetwork.repository.NodeRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
 import com.knowledgenetwork.security.WorkspaceSecurityValidator;
+import com.knowledgenetwork.domain.enums.AuditAction;
+import com.knowledgenetwork.domain.enums.AuditEntityType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,19 +38,22 @@ public class EdgeService {
     private final EdgeTypeRepository edgeTypeRepository;
     private final WorkspaceSecurityValidator workspaceSecurityValidator;
     private final EdgeMapper edgeMapper;
+    private final AuditLogService auditLogService;
 
     public EdgeService(WorkspaceRepository workspaceRepository,
                        NodeRepository nodeRepository,
                        EdgeRepository edgeRepository,
                        EdgeTypeRepository edgeTypeRepository,
                        WorkspaceSecurityValidator workspaceSecurityValidator,
-                       EdgeMapper edgeMapper) {
+                       EdgeMapper edgeMapper,
+                       AuditLogService auditLogService) {
         this.workspaceRepository = workspaceRepository;
         this.nodeRepository = nodeRepository;
         this.edgeRepository = edgeRepository;
         this.edgeTypeRepository = edgeTypeRepository;
         this.workspaceSecurityValidator = workspaceSecurityValidator;
         this.edgeMapper = edgeMapper;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -92,6 +97,19 @@ public class EdgeService {
         edge.setUpdatedBy(currentUserIdStr);
 
         edge = edgeRepository.save(edge);
+
+        auditLogService.recordEvent(
+                AuditAction.RELATIONSHIP_CREATED,
+                AuditEntityType.RELATIONSHIP,
+                edge.getId(),
+                workspace.getId(),
+                java.util.Map.of(
+                        "sourceNodeId", sourceNode.getId(),
+                        "targetNodeId", targetNode.getId(),
+                        "relationshipType", edgeType.getName()
+                )
+        );
+
         return edgeMapper.toEdgeResponse(edge);
     }
 
@@ -160,6 +178,14 @@ public class EdgeService {
         edge.setUpdatedBy(currentUserId.toString());
         edge = edgeRepository.save(edge);
 
+        auditLogService.recordEvent(
+                AuditAction.RELATIONSHIP_UPDATED,
+                AuditEntityType.RELATIONSHIP,
+                edge.getId(),
+                edge.getWorkspace().getId(),
+                java.util.Map.of("relationshipType", edge.getEdgeType().getName())
+        );
+
         return edgeMapper.toEdgeResponse(edge);
     }
 
@@ -175,6 +201,14 @@ public class EdgeService {
         edge.setDeleted(true);
         edge.setUpdatedBy(currentUserId.toString());
         edgeRepository.save(edge);
+
+        auditLogService.recordEvent(
+                AuditAction.RELATIONSHIP_DELETED,
+                AuditEntityType.RELATIONSHIP,
+                edge.getId(),
+                edge.getWorkspace().getId(),
+                java.util.Map.of("relationshipType", edge.getEdgeType().getName())
+        );
     }
 
     private Workspace getWorkspace(UUID graphId) {

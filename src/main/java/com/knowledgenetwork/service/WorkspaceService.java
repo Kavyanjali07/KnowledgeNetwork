@@ -28,6 +28,8 @@ import com.knowledgenetwork.repository.NodeTypeRepository;
 import com.knowledgenetwork.repository.UserRepository;
 import com.knowledgenetwork.repository.WorkspaceMemberRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
+import com.knowledgenetwork.domain.enums.AuditAction;
+import com.knowledgenetwork.domain.enums.AuditEntityType;
 import com.knowledgenetwork.security.WorkspaceSecurityValidator;
 
 @Service
@@ -39,19 +41,22 @@ public class WorkspaceService {
     private final NodeTypeRepository nodeTypeRepository;
     private final EdgeTypeRepository edgeTypeRepository;
     private final WorkspaceSecurityValidator workspaceSecurityValidator;
+    private final AuditLogService auditLogService;
 
     public WorkspaceService(WorkspaceRepository workspaceRepository,
                             WorkspaceMemberRepository workspaceMemberRepository,
                             UserRepository userRepository,
                             NodeTypeRepository nodeTypeRepository,
                             EdgeTypeRepository edgeTypeRepository,
-                            WorkspaceSecurityValidator workspaceSecurityValidator) {
+                            WorkspaceSecurityValidator workspaceSecurityValidator,
+                            AuditLogService auditLogService) {
         this.workspaceRepository = workspaceRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.userRepository = userRepository;
         this.nodeTypeRepository = nodeTypeRepository;
         this.edgeTypeRepository = edgeTypeRepository;
         this.workspaceSecurityValidator = workspaceSecurityValidator;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -67,6 +72,13 @@ public class WorkspaceService {
         WorkspaceMember member = new WorkspaceMember(workspace, owner, WorkspaceRole.OWNER);
         workspaceMemberRepository.save(member);
         seedDefaultRelationshipTypes(workspace, currentUserIdString);
+        auditLogService.recordEvent(
+                AuditAction.WORKSPACE_CREATED,
+                AuditEntityType.WORKSPACE,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("name", workspace.getName())
+        );
         return mapWorkspace(workspace);
     }
 
@@ -151,6 +163,13 @@ public class WorkspaceService {
         String currentUserId = SecurityUtils.getCurrentUserId().toString();
         workspace.setUpdatedBy(currentUserId);
         workspace = workspaceRepository.save(workspace);
+        auditLogService.recordEvent(
+                AuditAction.WORKSPACE_UPDATED,
+                AuditEntityType.WORKSPACE,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("name", workspace.getName())
+        );
         return mapWorkspace(workspace);
     }
 
@@ -162,6 +181,13 @@ public class WorkspaceService {
         String currentUserId = SecurityUtils.getCurrentUserId().toString();
         workspace.setUpdatedBy(currentUserId);
         workspaceRepository.save(workspace);
+        auditLogService.recordEvent(
+                AuditAction.WORKSPACE_DELETED,
+                AuditEntityType.WORKSPACE,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("name", workspace.getName())
+        );
     }
 
     @Transactional(readOnly = true)
@@ -184,6 +210,13 @@ public class WorkspaceService {
         }
         WorkspaceMember member = new WorkspaceMember(workspace, user, request.getRole());
         workspaceMemberRepository.save(member);
+        auditLogService.recordEvent(
+                AuditAction.MEMBER_ADDED,
+                AuditEntityType.WORKSPACE_MEMBER,
+                member.getId(),
+                workspace.getId(),
+                java.util.Map.of("memberUserId", user.getId(), "role", request.getRole().name())
+        );
         return mapWorkspaceMember(member);
     }
 
@@ -197,6 +230,13 @@ public class WorkspaceService {
             throw new BusinessException("Member does not belong to this workspace");
         }
         workspaceMemberRepository.delete(member);
+        auditLogService.recordEvent(
+                AuditAction.MEMBER_REMOVED,
+                AuditEntityType.WORKSPACE_MEMBER,
+                member.getId(),
+                workspace.getId(),
+                java.util.Map.of("memberUserId", member.getUser().getId())
+        );
     }
 
     private Workspace getWorkspace(UUID id) {

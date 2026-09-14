@@ -208,3 +208,31 @@ logging:
   level:
     root: INFO
     com.knowledgenetwork: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test-pg
+
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    schemas: public
+    clean-disabled: false
+
+  cache:
+    type: simple
+

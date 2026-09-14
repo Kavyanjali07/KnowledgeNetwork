@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "../../../components/ui/button";
 import { useTheme } from "../../../components/theme/ThemeProvider";
 import { useAuth } from "../../../lib/auth-context";
@@ -149,6 +150,30 @@ export function SettingsPage() {
                 {security.activeSessions} devices
               </span>
             </div>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.11 }}
+          className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 sm:p-5 backdrop-blur-xl"
+        >
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <ShieldCheck size={16} className="text-cyan-400" />
+                <h2 className="text-sm font-semibold text-slate-100">Audit Log & Compliance</h2>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                View immutable history of authentication, workspace settings, graph edits, and node modifications.
+              </p>
+            </div>
+            <Link to="/audit-log">
+              <Button className="h-9 shrink-0 border border-cyan-500/30 bg-cyan-500/10 text-xs text-cyan-300 hover:bg-cyan-500/20">
+                View Audit Trail
+              </Button>
+            </Link>
           </div>
         </motion.div>
 

@@ -5,6 +5,8 @@ import { SaasLayout } from "./components/layout/SaasLayout";
 import { LoginPage } from "./features/auth/pages/LoginPage";
 import { RegisterPage } from "./features/auth/pages/RegisterPage";
 import { VerifyEmailPage } from "./features/auth/components/VerifyEmailPage";
+import { ForgotPasswordPage } from "./features/auth/pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "./features/auth/pages/ResetPasswordPage";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 
 function PageSkeleton() {
@@ -55,6 +57,7 @@ const VersionHistoryPage = lazy(() => import("./features/versions/pages/VersionH
 const ProfilePage = lazy(() => import("./features/profile/pages/ProfilePage").then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import("./features/settings/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const NotificationHistoryPage = lazy(() => import("./features/notifications/pages/NotificationHistoryPage").then(m => ({ default: m.NotificationHistoryPage })));
+const AuditLogPage = lazy(() => import("./features/audit/pages/AuditLogPage").then(m => ({ default: m.AuditLogPage })));
 
 function AppRoutes() {
   return (
@@ -62,6 +65,8 @@ function AppRoutes() {
       <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
       <Route path="/register" element={<PublicRoute><RegisterPage /></PublicRoute>} />
       <Route path="/verify-email" element={<PublicRoute><VerifyEmailPage /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
 
       {/* Account protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute>{renderLazy(<GraphManagementPage />)}</ProtectedRoute>} />
@@ -76,6 +81,8 @@ function AppRoutes() {
       <Route path="/history" element={<ProtectedRoute>{renderLazy(<VersionHistoryPage />)}</ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute>{renderLazy(<ProfilePage />)}</ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute>{renderLazy(<SettingsPage />)}</ProtectedRoute>} />
+      <Route path="/settings/audit-log" element={<ProtectedRoute>{renderLazy(<AuditLogPage />)}</ProtectedRoute>} />
+      <Route path="/audit-log" element={<ProtectedRoute>{renderLazy(<AuditLogPage />)}</ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute>{renderLazy(<NotificationHistoryPage />)}</ProtectedRoute>} />
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

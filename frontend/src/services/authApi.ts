@@ -43,6 +43,16 @@ export interface LoginResponse extends AuthTokens {
 
 export type RefreshResponse = LoginResponse;
 
+export interface ForgotPasswordData {
+  email: string;
+}
+
+export interface ResetPasswordData {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
 export const authApi = {
   login: (credentials: LoginCredentials) =>
     post<LoginResponse>("/auth/login", credentials),
@@ -52,8 +62,13 @@ export const authApi = {
     post<LoginResponse>("/auth/verify-email", { email, otp }),
   resendOtp: (email: string) =>
     post<string>("/auth/resend-verification-otp", { email }),
+  forgotPassword: (email: string) =>
+    post<void>("/auth/forgot-password", { email }),
+  resetPassword: (data: ResetPasswordData) =>
+    post<void>("/auth/reset-password", data),
   refresh: () =>
     post<RefreshResponse>("/auth/refresh", {}),
   logout: () =>
     post<void>("/auth/logout")
 };
+
