@@ -1,6 +1,7 @@
 package com.knowledgenetwork.service;
 
 import com.knowledgenetwork.common.exception.BusinessException;
+import com.knowledgenetwork.domain.enums.OtpType;
 import com.knowledgenetwork.domain.model.VerificationOtp;
 import com.knowledgenetwork.repository.VerificationOtpRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,7 +40,7 @@ class OtpServiceTest {
 
     @Test
     void generateAndSaveOtpShouldInvalidatePreviousAndSaveNew() {
-        when(otpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId)).thenReturn(Optional.empty());
+        when(otpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFICATION)).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("hashed-otp");
         when(otpRepository.save(any(VerificationOtp.class))).thenAnswer(i -> i.getArgument(0));
 
@@ -48,7 +49,7 @@ class OtpServiceTest {
         assertNotNull(rawOtp);
         assertEquals(6, rawOtp.length());
         assertTrue(rawOtp.matches("\\d{6}"));
-        verify(otpRepository).invalidateAllByUserId(userId);
+        verify(otpRepository).invalidateAllByUserIdAndOtpType(userId, OtpType.EMAIL_VERIFICATION);
         verify(otpRepository).save(any(VerificationOtp.class));
     }
 
@@ -60,7 +61,7 @@ class OtpServiceTest {
         otp.setExpiresAt(Instant.now().plusSeconds(300));
         otp.setUsed(false);
 
-        when(otpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId)).thenReturn(Optional.of(otp));
+        when(otpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFICATION)).thenReturn(Optional.of(otp));
         when(passwordEncoder.matches("123456", "hashed-otp")).thenReturn(true);
 
         assertDoesNotThrow(() -> otpService.verifyOtp(userId, "123456"));
@@ -76,7 +77,7 @@ class OtpServiceTest {
         otp.setExpiresAt(Instant.now().plusSeconds(300));
         otp.setUsed(false);
 
-        when(otpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId)).thenReturn(Optional.of(otp));
+        when(otpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFICATION)).thenReturn(Optional.of(otp));
         when(passwordEncoder.matches("654321", "hashed-otp")).thenReturn(false);
 
         BusinessException ex = assertThrows(BusinessException.class, () -> otpService.verifyOtp(userId, "654321"));
@@ -92,7 +93,7 @@ class OtpServiceTest {
         otp.setExpiresAt(Instant.now().minusSeconds(10));
         otp.setUsed(false);
 
-        when(otpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId)).thenReturn(Optional.of(otp));
+        when(otpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFICATION)).thenReturn(Optional.of(otp));
 
         BusinessException ex = assertThrows(BusinessException.class, () -> otpService.verifyOtp(userId, "123456"));
         assertTrue(ex.getMessage().contains("expired"));
@@ -105,7 +106,7 @@ class OtpServiceTest {
         otp.setUserId(userId);
         otp.setCreatedAt(Instant.now().minusSeconds(20));
 
-        when(otpRepository.findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(userId)).thenReturn(Optional.of(otp));
+        when(otpRepository.findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFICATION)).thenReturn(Optional.of(otp));
 
         BusinessException exception = assertThrows(BusinessException.class, () -> otpService.generateAndSaveOtp(userId));
         assertTrue(exception.getMessage().contains("Please wait"));

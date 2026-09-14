@@ -14,6 +14,8 @@ import com.knowledgenetwork.repository.EdgeRepository;
 import com.knowledgenetwork.repository.NodeRepository;
 import com.knowledgenetwork.repository.NodeTypeRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
+import com.knowledgenetwork.domain.enums.AuditAction;
+import com.knowledgenetwork.domain.enums.AuditEntityType;
 import com.knowledgenetwork.security.WorkspaceSecurityValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -39,19 +41,22 @@ public class NodeService {
     private final EdgeRepository edgeRepository;
     private final WorkspaceSecurityValidator workspaceSecurityValidator;
     private final NodeMapper nodeMapper;
+    private final AuditLogService auditLogService;
 
     public NodeService(NodeRepository nodeRepository,
                        WorkspaceRepository workspaceRepository,
                        NodeTypeRepository nodeTypeRepository,
                        EdgeRepository edgeRepository,
                        WorkspaceSecurityValidator workspaceSecurityValidator,
-                       NodeMapper nodeMapper) {
+                       NodeMapper nodeMapper,
+                       AuditLogService auditLogService) {
         this.nodeRepository = nodeRepository;
         this.workspaceRepository = workspaceRepository;
         this.nodeTypeRepository = nodeTypeRepository;
         this.edgeRepository = edgeRepository;
         this.workspaceSecurityValidator = workspaceSecurityValidator;
         this.nodeMapper = nodeMapper;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -113,6 +118,15 @@ public class NodeService {
         node.setUpdatedBy(currentUserId.toString());
 
         node = nodeRepository.save(node);
+
+        auditLogService.recordEvent(
+                AuditAction.NODE_CREATED,
+                AuditEntityType.NODE,
+                node.getId(),
+                workspace.getId(),
+                java.util.Map.of("label", node.getLabel())
+        );
+
         return nodeMapper.toNodeResponse(node);
     }
 
@@ -217,6 +231,15 @@ public class NodeService {
         node.setUpdatedBy(currentUserId.toString());
 
         node = nodeRepository.save(node);
+
+        auditLogService.recordEvent(
+                AuditAction.NODE_UPDATED,
+                AuditEntityType.NODE,
+                node.getId(),
+                node.getWorkspace().getId(),
+                java.util.Map.of("label", node.getLabel())
+        );
+
         return nodeMapper.toNodeResponse(node);
     }
 
@@ -232,6 +255,14 @@ public class NodeService {
         node.setDeleted(true);
         node.setUpdatedBy(currentUserId.toString());
         nodeRepository.save(node);
+
+        auditLogService.recordEvent(
+                AuditAction.NODE_DELETED,
+                AuditEntityType.NODE,
+                node.getId(),
+                node.getWorkspace().getId(),
+                java.util.Map.of("label", node.getLabel())
+        );
 
         var edges = edgeRepository.findByWorkspaceAndIsDeletedFalse(node.getWorkspace(), Pageable.unpaged()).getContent();
         for (var edge : edges) {

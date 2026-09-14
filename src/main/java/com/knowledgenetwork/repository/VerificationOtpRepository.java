@@ -16,9 +16,7 @@ public interface VerificationOtpRepository extends JpaRepository<VerificationOtp
 
     Optional<VerificationOtp> findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(UUID userId, OtpType otpType);
 
-    default Optional<VerificationOtp> findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(UUID userId) {
-        return findTopByUserIdAndOtpTypeAndUsedFalseOrderByCreatedAtDesc(userId, OtpType.EMAIL_VERIFICATION);
-    }
+    Optional<VerificationOtp> findTopByUserIdAndUsedFalseOrderByCreatedAtDesc(UUID userId);
 
     @Modifying
     @Query("UPDATE VerificationOtp vo SET vo.used = true WHERE vo.userId = :userId AND vo.otpType = :otpType AND vo.used = false")

@@ -127,4 +127,52 @@ class AuthControllerTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.status").value(422));
     }
+
+    @Test
+    void forgotPasswordShouldReturnOkResponse() throws Exception {
+        com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest("user@example.com");
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void forgotPasswordInvalidEmailShouldReturn422UnprocessableEntity() throws Exception {
+        com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest("invalid-email");
+
+        mockMvc.perform(post("/api/v1/auth/forgot-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422));
+    }
+
+    @Test
+    void resetPasswordShouldReturnOkResponse() throws Exception {
+        com.knowledgenetwork.domain.payload.request.ResetPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ResetPasswordRequest("user@example.com", "123456", "newPassword123");
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true));
+    }
+
+    @Test
+    void resetPasswordInvalidCodeLengthShouldReturn422UnprocessableEntity() throws Exception {
+        com.knowledgenetwork.domain.payload.request.ResetPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ResetPasswordRequest("user@example.com", "123", "newPassword123");
+
+        mockMvc.perform(post("/api/v1/auth/reset-password")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422));
+    }
 }

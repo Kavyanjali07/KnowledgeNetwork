@@ -26,6 +26,8 @@ import com.knowledgenetwork.repository.WorkspaceMemberRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
 import com.knowledgenetwork.security.JwtTokenProvider;
 import com.knowledgenetwork.security.UserPrincipal;
+import com.knowledgenetwork.domain.enums.AuditAction;
+import com.knowledgenetwork.domain.enums.AuditEntityType;
 import com.knowledgenetwork.domain.enums.OtpType;
 import com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest;
 import com.knowledgenetwork.domain.payload.request.ResetPasswordRequest;
@@ -56,6 +58,7 @@ public class AuthService {
     private final OtpService otpService;
     private final EmailService emailService;
     private final VerificationOtpRepository verificationOtpRepository;
+    private final AuditLogService auditLogService;
 
     public AuthService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
@@ -69,7 +72,8 @@ public class AuthService {
                        EdgeTypeRepository edgeTypeRepository,
                        OtpService otpService,
                        EmailService emailService,
-                       VerificationOtpRepository verificationOtpRepository) {
+                       VerificationOtpRepository verificationOtpRepository,
+                       AuditLogService auditLogService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -83,6 +87,7 @@ public class AuthService {
         this.otpService = otpService;
         this.emailService = emailService;
         this.verificationOtpRepository = verificationOtpRepository;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -133,6 +138,15 @@ public class AuthService {
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
         UserResponse userResponse = userMapper.toUserResponse(user);
 
+        auditLogService.recordEventForUser(
+                AuditAction.EMAIL_VERIFIED,
+                AuditEntityType.AUTH,
+                user.getId(),
+                null,
+                user,
+                java.util.Map.of("email", user.getEmail())
+        );
+
         return new AuthResponse(
                 accessToken,
                 refreshToken.getToken(),
@@ -159,20 +173,52 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         String email = request.getEmail().toLowerCase().trim();
 
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(email, request.getPassword())
-        );
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, request.getPassword())
+            );
+        } catch (Exception ex) {
+            userRepository.findByEmail(email).ifPresent(failedUser ->
+                    auditLogService.recordEventForUser(
+                            AuditAction.LOGIN_FAILURE,
+                            AuditEntityType.AUTH,
+                            failedUser.getId(),
+                            null,
+                            failedUser,
+                            java.util.Map.of("email", email, "reason", "INVALID_CREDENTIALS")
+                    )
+            );
+            throw ex;
+        }
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
         User user = userRepository.findById(userPrincipal.getId())
                 .orElseThrow(() -> new org.springframework.security.authentication.BadCredentialsException("Invalid email or password provided."));
 
         if (!user.isEmailVerified()) {
+            auditLogService.recordEventForUser(
+                    AuditAction.LOGIN_FAILURE,
+                    AuditEntityType.AUTH,
+                    user.getId(),
+                    null,
+                    user,
+                    java.util.Map.of("email", email, "reason", "EMAIL_NOT_VERIFIED")
+            );
             throw new com.knowledgenetwork.common.exception.EmailNotVerifiedException(
                     user.getEmail(),
                     "EMAIL_NOT_VERIFIED: Please verify your email before signing in."
             );
         }
+
+        auditLogService.recordEventForUser(
+                AuditAction.LOGIN_SUCCESS,
+                AuditEntityType.AUTH,
+                user.getId(),
+                null,
+                user,
+                java.util.Map.of("email", email)
+        );
 
         String accessToken = tokenProvider.generateAccessToken(userPrincipal);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getId());
@@ -223,6 +269,13 @@ public class AuthService {
     public void logout(UUID userId, String refreshTokenStr) {
         if (userId != null) {
             refreshTokenService.revokeByUserId(userId);
+            auditLogService.recordEvent(
+                    AuditAction.LOGOUT,
+                    AuditEntityType.AUTH,
+                    userId,
+                    null,
+                    java.util.Map.of("actorId", userId)
+            );
         } else if (refreshTokenStr != null && !refreshTokenStr.isBlank()) {
             refreshTokenService.revokeByToken(refreshTokenStr);
         }
@@ -237,6 +290,14 @@ public class AuthService {
             User user = userOpt.get();
             String otp = otpService.generateAndSaveOtp(user.getId(), OtpType.PASSWORD_RESET);
             emailService.sendPasswordResetEmail(user.getEmail(), otp);
+            auditLogService.recordEventForUser(
+                    AuditAction.PASSWORD_RESET_REQUESTED,
+                    AuditEntityType.AUTH,
+                    user.getId(),
+                    null,
+                    user,
+                    java.util.Map.of("email", email)
+            );
         } else {
             org.slf4j.LoggerFactory.getLogger(AuthService.class)
                     .info("Password reset requested for non-existent email address: [{}]", email);
@@ -265,6 +326,15 @@ public class AuthService {
 
         // Revoke all active user sessions / refresh tokens
         refreshTokenService.revokeByUserId(user.getId());
+
+        auditLogService.recordEventForUser(
+                AuditAction.PASSWORD_RESET_COMPLETED,
+                AuditEntityType.AUTH,
+                user.getId(),
+                null,
+                user,
+                java.util.Map.of("email", email)
+        );
 
         org.slf4j.LoggerFactory.getLogger(AuthService.class)
                 .info("Successfully reset password and revoked sessions for user [{}]", user.getId());

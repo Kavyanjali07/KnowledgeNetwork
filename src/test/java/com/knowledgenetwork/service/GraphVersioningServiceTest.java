@@ -71,6 +71,9 @@ class GraphVersioningServiceTest {
     @Mock
     private com.knowledgenetwork.security.WorkspaceSecurityValidator workspaceSecurityValidator;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private GraphVersioningService graphVersioningService;
 

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useToast } from "../components/ui/toast";
 import { setAccessTokenInMemory, clearStoredSession } from "./api-client";
-import { authApi, RegisterResponse } from "../services/authApi";
+import { authApi, RegisterResponse, ResetPasswordData } from "../services/authApi";
 
 export interface AuthUser {
   id: string;
@@ -23,6 +23,8 @@ interface AuthContextValue {
   register: (email: string, password: string, firstName: string, lastName: string) => Promise<RegisterResponse>;
   verifyEmail: (email: string, otp: string) => Promise<void>;
   resendOtp: (email: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (data: ResetPasswordData) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
   updateCurrentUser: (user: AuthUser) => void;
@@ -117,6 +119,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const forgotPassword = useCallback(
+    async (email: string) => {
+      await authApi.forgotPassword(email);
+    },
+    []
+  );
+
+  const resetPassword = useCallback(
+    async (data: ResetPasswordData) => {
+      await authApi.resetPassword(data);
+    },
+    []
+  );
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -145,6 +161,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         verifyEmail,
         resendOtp,
+        forgotPassword,
+        resetPassword,
         logout,
         refresh,
         updateCurrentUser

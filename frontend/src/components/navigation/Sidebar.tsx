@@ -9,6 +9,7 @@ import {
   PanelLeftOpen,
   Search,
   Settings2,
+  ShieldCheck,
   User
 } from "lucide-react";
 import { useState } from "react";
@@ -20,6 +21,7 @@ const navItems = [
   { label: "Graphs", icon: Network, href: "/graphs" },
   { label: "History", icon: History, href: "/history" },
   { label: "Search", icon: Search, href: "/search" },
+  { label: "Audit Log", icon: ShieldCheck, href: "/audit-log" },
   { label: "Notifications", icon: Bell, href: "/notifications" },
   { label: "Activity", icon: Activity, href: "/activity" },
   { label: "Profile", icon: User, href: "/profile" },

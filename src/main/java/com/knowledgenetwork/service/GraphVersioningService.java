@@ -43,6 +43,8 @@ import com.knowledgenetwork.repository.NodeTypeRepository;
 import com.knowledgenetwork.repository.UserRepository;
 import com.knowledgenetwork.repository.WorkspaceMemberRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
+import com.knowledgenetwork.domain.enums.AuditAction;
+import com.knowledgenetwork.domain.enums.AuditEntityType;
 import com.knowledgenetwork.security.WorkspaceSecurityValidator;
 
 @Service
@@ -60,6 +62,7 @@ public class GraphVersioningService {
     private final EdgeTypeRepository edgeTypeRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceSecurityValidator workspaceSecurityValidator;
+    private final AuditLogService auditLogService;
 
     public GraphVersioningService(GraphSnapshotRepository graphSnapshotRepository,
                                     GraphVersionRepository graphVersionRepository,
@@ -72,7 +75,8 @@ public class GraphVersioningService {
                                     NodeTypeRepository nodeTypeRepository,
                                     EdgeTypeRepository edgeTypeRepository,
                                     WorkspaceMemberRepository workspaceMemberRepository,
-                                    WorkspaceSecurityValidator workspaceSecurityValidator) {
+                                    WorkspaceSecurityValidator workspaceSecurityValidator,
+                                    AuditLogService auditLogService) {
         this.graphSnapshotRepository = graphSnapshotRepository;
         this.graphVersionRepository = graphVersionRepository;
         this.graphForkRepository = graphForkRepository;
@@ -85,6 +89,7 @@ public class GraphVersioningService {
         this.edgeTypeRepository = edgeTypeRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.workspaceSecurityValidator = workspaceSecurityValidator;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -123,7 +128,17 @@ public class GraphVersioningService {
         version.setChangeType("SNAPSHOT");
         version.setCreatedAt(Instant.now());
         version.setCreatedBy(currentUserId);
-        return graphVersionRepository.save(version);
+        GraphVersion savedVersion = graphVersionRepository.save(version);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_VERSION_CREATED,
+                AuditEntityType.GRAPH_VERSION,
+                savedVersion.getId(),
+                workspace.getId(),
+                java.util.Map.of("label", label, "versionNumber", nextVersionNumber)
+        );
+
+        return savedVersion;
     }
 
     @Transactional(readOnly = true)
@@ -166,7 +181,17 @@ public class GraphVersioningService {
         restoreVersion.setChangeType("RESTORE");
         restoreVersion.setCreatedAt(Instant.now());
         restoreVersion.setCreatedBy(currentUserId);
-        return graphVersionRepository.save(restoreVersion);
+        GraphVersion savedRestoreVersion = graphVersionRepository.save(restoreVersion);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_VERSION_RESTORED,
+                AuditEntityType.GRAPH_VERSION,
+                savedRestoreVersion.getId(),
+                workspace.getId(),
+                java.util.Map.of("targetVersionNumber", targetVersion.getVersionNumber(), "restoredVersionNumber", nextVersionNumber)
+        );
+
+        return savedRestoreVersion;
     }
 
     @Transactional
@@ -207,6 +232,15 @@ public class GraphVersioningService {
         ownerAssignment.setRole("OWNER");
         ownerAssignment.setGrantedAt(Instant.now());
         graphForkOwnerRepository.save(ownerAssignment);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_FORKED,
+                AuditEntityType.GRAPH_VERSION,
+                fork.getId(),
+                forkWorkspace.getId(),
+                java.util.Map.of("sourceWorkspaceId", sourceWorkspace.getId(), "sourceVersionId", sourceVersionId, "name", name)
+        );
+
         GraphForkResponse response = new GraphForkResponse();
         response.setId(fork.getId());
         response.setWorkspaceId(forkWorkspace.getId());

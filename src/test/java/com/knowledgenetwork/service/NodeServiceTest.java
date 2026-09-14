@@ -61,6 +61,9 @@ class NodeServiceTest {
     @Mock
     private NodeMapper nodeMapper;
 
+    @Mock
+    private AuditLogService auditLogService;
+
     @InjectMocks
     private NodeService nodeService;
 

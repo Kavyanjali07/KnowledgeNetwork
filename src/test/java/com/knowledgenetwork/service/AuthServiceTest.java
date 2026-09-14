@@ -14,6 +14,7 @@ import com.knowledgenetwork.domain.payload.response.RegisterResponse;
 import com.knowledgenetwork.repository.EdgeTypeRepository;
 import com.knowledgenetwork.repository.NodeTypeRepository;
 import com.knowledgenetwork.repository.UserRepository;
+import com.knowledgenetwork.repository.VerificationOtpRepository;
 import com.knowledgenetwork.repository.WorkspaceMemberRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
 import com.knowledgenetwork.security.JwtTokenProvider;
@@ -79,6 +80,9 @@ class AuthServiceTest {
 
     @Mock
     private VerificationOtpRepository verificationOtpRepository;
+
+    @Mock
+    private AuditLogService auditLogService;
 
     @InjectMocks
     private AuthService authService;
@@ -271,5 +275,70 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("new-token", response.getAccessToken());
+    }
+
+    @Test
+    void forgotPasswordShouldGenerateResetOtpAndSendEmailForExistingUser() {
+        com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest("alice@example.com");
+
+        User user = new User();
+        UUID userId = UUID.randomUUID();
+        user.setId(userId);
+        user.setEmail("alice@example.com");
+
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
+        when(otpService.generateAndSaveOtp(userId, com.knowledgenetwork.domain.enums.OtpType.PASSWORD_RESET)).thenReturn("123456");
+
+        authService.forgotPassword(request);
+
+        verify(otpService).generateAndSaveOtp(userId, com.knowledgenetwork.domain.enums.OtpType.PASSWORD_RESET);
+        verify(emailService).sendPasswordResetEmail("alice@example.com", "123456");
+    }
+
+    @Test
+    void forgotPasswordShouldNotThrowExceptionForNonExistentUser() {
+        com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ForgotPasswordRequest("nonexistent@example.com");
+
+        when(userRepository.findByEmail("nonexistent@example.com")).thenReturn(Optional.empty());
+
+        assertDoesNotThrow(() -> authService.forgotPassword(request));
+    }
+
+    @Test
+    void resetPasswordShouldUpdatePasswordAndRevokeSessionsForValidOtp() {
+        com.knowledgenetwork.domain.payload.request.ResetPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ResetPasswordRequest("alice@example.com", "123456", "newPassword123");
+
+        User user = new User();
+        UUID userId = UUID.randomUUID();
+        user.setId(userId);
+        user.setEmail("alice@example.com");
+
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("newPassword123")).thenReturn("hashedNewPassword");
+
+        authService.resetPassword(request);
+
+        verify(otpService).verifyOtp(userId, "123456", com.knowledgenetwork.domain.enums.OtpType.PASSWORD_RESET);
+        verify(passwordEncoder).encode("newPassword123");
+        verify(userRepository).save(user);
+        verify(verificationOtpRepository).invalidateAllByUserIdAndOtpType(userId, com.knowledgenetwork.domain.enums.OtpType.PASSWORD_RESET);
+        verify(refreshTokenService).revokeByUserId(userId);
+        assertEquals("hashedNewPassword", user.getPasswordHash());
+    }
+
+    @Test
+    void resetPasswordShouldRejectShortPassword() {
+        com.knowledgenetwork.domain.payload.request.ResetPasswordRequest request =
+                new com.knowledgenetwork.domain.payload.request.ResetPasswordRequest("alice@example.com", "123456", "short");
+
+        User user = new User();
+        user.setEmail("alice@example.com");
+
+        when(userRepository.findByEmail("alice@example.com")).thenReturn(Optional.of(user));
+
+        assertThrows(BusinessException.class, () -> authService.resetPassword(request));
     }
 }

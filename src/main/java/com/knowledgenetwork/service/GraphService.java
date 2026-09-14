@@ -22,6 +22,8 @@ import com.knowledgenetwork.repository.NodeTypeRepository;
 import com.knowledgenetwork.repository.UserRepository;
 import com.knowledgenetwork.repository.WorkspaceMemberRepository;
 import com.knowledgenetwork.repository.WorkspaceRepository;
+import com.knowledgenetwork.domain.enums.AuditAction;
+import com.knowledgenetwork.domain.enums.AuditEntityType;
 import com.knowledgenetwork.security.WorkspaceSecurityValidator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -47,6 +49,7 @@ public class GraphService {
     private final EdgeRepository edgeRepository;
     private final WorkspaceSecurityValidator workspaceSecurityValidator;
     private final GraphMapper graphMapper;
+    private final AuditLogService auditLogService;
 
     public GraphService(WorkspaceRepository workspaceRepository,
                         WorkspaceMemberRepository workspaceMemberRepository,
@@ -56,7 +59,8 @@ public class GraphService {
                         NodeRepository nodeRepository,
                         EdgeRepository edgeRepository,
                         WorkspaceSecurityValidator workspaceSecurityValidator,
-                        GraphMapper graphMapper) {
+                        GraphMapper graphMapper,
+                        AuditLogService auditLogService) {
         this.workspaceRepository = workspaceRepository;
         this.workspaceMemberRepository = workspaceMemberRepository;
         this.userRepository = userRepository;
@@ -66,6 +70,7 @@ public class GraphService {
         this.edgeRepository = edgeRepository;
         this.workspaceSecurityValidator = workspaceSecurityValidator;
         this.graphMapper = graphMapper;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -88,6 +93,14 @@ public class GraphService {
         workspaceMemberRepository.save(member);
 
         seedDefaultRelationshipTypes(workspace, currentUserIdString);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_CREATED,
+                AuditEntityType.GRAPH,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("title", workspace.getName())
+        );
 
         return mapToGraphResponse(workspace);
     }
@@ -167,6 +180,14 @@ public class GraphService {
         workspace.setUpdatedBy(currentUserId.toString());
         workspace = workspaceRepository.save(workspace);
 
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_UPDATED,
+                AuditEntityType.GRAPH,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("title", workspace.getName())
+        );
+
         return mapToGraphResponse(workspace);
     }
 
@@ -181,6 +202,14 @@ public class GraphService {
         workspace.setDeleted(true);
         workspace.setUpdatedBy(currentUserId.toString());
         workspaceRepository.save(workspace);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_DELETED,
+                AuditEntityType.GRAPH,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("title", workspace.getName())
+        );
     }
 
     private void seedDefaultRelationshipTypes(Workspace workspace, String creatorId) {
