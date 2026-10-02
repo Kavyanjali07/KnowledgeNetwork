@@ -22,6 +22,12 @@ public class GraphResponse {
     private boolean isDeleted;
     private long nodeCount;
     private long edgeCount;
+    private com.knowledgenetwork.domain.enums.LicenseType licenseType;
+    private boolean isPublished;
+    private Instant publishedAt;
+    private String customAttribution;
+    private long derivativeCount;
+    private long referenceCount;
 
     public GraphResponse() {
     }
@@ -158,5 +164,53 @@ public class GraphResponse {
 
     public void setEdgeCount(long edgeCount) {
         this.edgeCount = edgeCount;
+    }
+
+    public com.knowledgenetwork.domain.enums.LicenseType getLicenseType() {
+        return licenseType;
+    }
+
+    public void setLicenseType(com.knowledgenetwork.domain.enums.LicenseType licenseType) {
+        this.licenseType = licenseType;
+    }
+
+    public boolean isPublished() {
+        return isPublished;
+    }
+
+    public void setPublished(boolean published) {
+        isPublished = published;
+    }
+
+    public Instant getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(Instant publishedAt) {
+        this.publishedAt = publishedAt;
+    }
+
+    public String getCustomAttribution() {
+        return customAttribution;
+    }
+
+    public void setCustomAttribution(String customAttribution) {
+        this.customAttribution = customAttribution;
+    }
+
+    public long getDerivativeCount() {
+        return derivativeCount;
+    }
+
+    public void setDerivativeCount(long derivativeCount) {
+        this.derivativeCount = derivativeCount;
+    }
+
+    public long getReferenceCount() {
+        return referenceCount;
+    }
+
+    public void setReferenceCount(long referenceCount) {
+        this.referenceCount = referenceCount;
     }
 }

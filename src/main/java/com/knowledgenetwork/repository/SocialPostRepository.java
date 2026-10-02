@@ -17,6 +17,8 @@ public interface SocialPostRepository extends JpaRepository<SocialPost, UUID> {
 
     Page<SocialPost> findByWorkspaceAndIsDeletedFalse(Workspace workspace, Pageable pageable);
 
+    Optional<SocialPost> findByIdAndIsDeletedFalse(UUID id);
+
     Optional<SocialPost> findByIdAndWorkspaceAndIsDeletedFalse(UUID id, Workspace workspace);
 
     long countByAuthorAndIsDeletedFalse(User author);

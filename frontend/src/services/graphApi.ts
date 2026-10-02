@@ -1,6 +1,110 @@
 import { del, get, post, put } from "../lib/api-client";
 import type { NodeResponse } from "./nodeApi";
 
+export type LicenseType =
+  | "ALL_RIGHTS_RESERVED"
+  | "CC0_1_0"
+  | "CC_BY_4_0"
+  | "CC_BY_SA_4_0"
+  | "CC_BY_NC_4_0"
+  | "CC_BY_NC_SA_4_0"
+  | "CC_BY_ND_4_0"
+  | "CC_BY_NC_ND_4_0";
+
+export interface LicenseInfo {
+  type: LicenseType;
+  shortName: string;
+  fullName: string;
+  description: string;
+  allowsDerivatives: boolean;
+  requiresShareAlike: boolean;
+  allowsCommercial: boolean;
+  requiresAttribution: boolean;
+}
+
+export const LICENSE_METADATA: Record<LicenseType, LicenseInfo> = {
+  ALL_RIGHTS_RESERVED: {
+    type: "ALL_RIGHTS_RESERVED",
+    shortName: "All Rights Reserved",
+    fullName: "All Rights Reserved",
+    description: "No reuse, derivative work, or commercial distribution permitted without explicit owner consent.",
+    allowsDerivatives: false,
+    requiresShareAlike: false,
+    allowsCommercial: true,
+    requiresAttribution: true
+  },
+  CC0_1_0: {
+    type: "CC0_1_0",
+    shortName: "CC0 1.0",
+    fullName: "CC0 1.0 Universal (Public Domain)",
+    description: "Waive all copyright and related rights. Anyone can freely reuse, adapt, and build upon this network.",
+    allowsDerivatives: true,
+    requiresShareAlike: false,
+    allowsCommercial: true,
+    requiresAttribution: false
+  },
+  CC_BY_4_0: {
+    type: "CC_BY_4_0",
+    shortName: "CC BY 4.0",
+    fullName: "Creative Commons Attribution 4.0 International",
+    description: "Permits reuse, distribution, and derivatives for any purpose, provided appropriate attribution is given.",
+    allowsDerivatives: true,
+    requiresShareAlike: false,
+    allowsCommercial: true,
+    requiresAttribution: true
+  },
+  CC_BY_SA_4_0: {
+    type: "CC_BY_SA_4_0",
+    shortName: "CC BY-SA 4.0",
+    fullName: "Creative Commons Attribution-ShareAlike 4.0 International",
+    description: "Permits reuse and derivatives, provided attribution is given and derived works are licensed under identical terms.",
+    allowsDerivatives: true,
+    requiresShareAlike: true,
+    allowsCommercial: true,
+    requiresAttribution: true
+  },
+  CC_BY_NC_4_0: {
+    type: "CC_BY_NC_4_0",
+    shortName: "CC BY-NC 4.0",
+    fullName: "Creative Commons Attribution-NonCommercial 4.0 International",
+    description: "Permits reuse and derivatives for non-commercial purposes only, with attribution.",
+    allowsDerivatives: true,
+    requiresShareAlike: false,
+    allowsCommercial: false,
+    requiresAttribution: true
+  },
+  CC_BY_NC_SA_4_0: {
+    type: "CC_BY_NC_SA_4_0",
+    shortName: "CC BY-NC-SA 4.0",
+    fullName: "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International",
+    description: "Permits non-commercial reuse and derivatives with attribution, locked to the same ShareAlike license.",
+    allowsDerivatives: true,
+    requiresShareAlike: true,
+    allowsCommercial: false,
+    requiresAttribution: true
+  },
+  CC_BY_ND_4_0: {
+    type: "CC_BY_ND_4_0",
+    shortName: "CC BY-ND 4.0",
+    fullName: "Creative Commons Attribution-NoDerivatives 4.0 International",
+    description: "Permits redistribution for any purpose, provided the work is passed along unchanged and in whole with attribution.",
+    allowsDerivatives: false,
+    requiresShareAlike: false,
+    allowsCommercial: true,
+    requiresAttribution: true
+  },
+  CC_BY_NC_ND_4_0: {
+    type: "CC_BY_NC_ND_4_0",
+    shortName: "CC BY-NC-ND 4.0",
+    fullName: "Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International",
+    description: "Most restrictive CC license: permits downloading and sharing for non-commercial purposes with attribution, but no derivatives.",
+    allowsDerivatives: false,
+    requiresShareAlike: false,
+    allowsCommercial: false,
+    requiresAttribution: true
+  }
+};
+
 export interface WorkspaceResponse {
   id: string;
   name: string;
@@ -31,6 +135,27 @@ export interface GraphResponse {
   deleted: boolean;
   nodeCount?: number;
   edgeCount?: number;
+  licenseType?: LicenseType;
+  isPublished?: boolean;
+  publishedAt?: string;
+  customAttribution?: string;
+  derivativeCount?: number;
+  referenceCount?: number;
+}
+
+export interface GraphForkResponse {
+  id: string;
+  workspaceId: string;
+  sourceWorkspaceId: string;
+  sourceVersionId?: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  createdBy: string;
+  sourceLicense?: LicenseType;
+  originalCreatorId?: string;
+  originalCreatorName?: string;
+  isDerivative: boolean;
 }
 
 export interface WorkspaceMemberResponse {
@@ -130,11 +255,18 @@ export const graphApi = {
   list: (params?: { page?: number; size?: number; sort?: string; direction?: string; visibility?: string }) =>
     get<{ content: GraphResponse[]; totalElements: number; totalPages: number; pageNumber: number; pageSize: number }>("/graphs", { params }),
   get: (id: string) => get<GraphResponse>(`/graphs/${id}`),
-  create: (data: { title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE' }) =>
+  create: (data: { title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE'; licenseType?: LicenseType; customAttribution?: string }) =>
     post<GraphResponse>("/graphs", data),
-  update: (id: string, data: { title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE'; version?: number }) =>
+  update: (id: string, data: { title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE'; version?: number; licenseType?: LicenseType; customAttribution?: string }) =>
     put<GraphResponse>(`/graphs/${id}`, data),
   delete: (id: string) => del<void>(`/graphs/${id}`),
+
+  publish: (id: string, data?: { licenseType?: LicenseType; customAttribution?: string }) =>
+    put<GraphResponse>(`/graphs/${id}/publish`, data),
+  unpublish: (id: string) =>
+    put<GraphResponse>(`/graphs/${id}/unpublish`, {}),
+  getProvenance: (workspaceId: string) =>
+    get<GraphForkResponse>(`/graphs/${workspaceId}/provenance`),
 
   traverse: (workspaceId: string, rootNodeId: string, maxDepth?: number, edgeTypeNames?: string[], direction?: string) =>
     post<{ rootNodeId: string; visitedNodeCount: number; visitedEdgeCount: number; nodes: Array<{ id: string; label: string; type: string }>; edges: Array<{ id: string; source: string; target: string; type: string; weight: number }> }>("/relationships/traverse", { workspaceId, rootNodeId, maxDepth, edgeTypeNames, direction }),

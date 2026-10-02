@@ -67,4 +67,47 @@ public interface NodeRepository extends JpaRepository<Node, UUID>, JpaSpecificat
             @Param("query") String query,
             @Param("nodeTypeName") String nodeTypeName,
             Pageable pageable);
+
+    @Query("""
+        SELECT n FROM Node n
+        JOIN n.workspace w
+        WHERE n.isDeleted = false
+        AND w.isDeleted = false
+        AND w.isPublished = true
+        AND w.visibility = com.knowledgenetwork.domain.model.Visibility.PUBLIC
+        AND (:query IS NULL OR :query = '' OR LOWER(n.label) LIKE LOWER(CONCAT('%', :query, '%')))
+    """)
+    Page<Node> findPublicNodesByLabel(@Param("query") String query, Pageable pageable);
+
+    @Query("""
+        SELECT n2.label, COUNT(n2.id) FROM Edge e
+        JOIN e.sourceNode n1
+        JOIN e.targetNode n2
+        JOIN e.workspace w
+        WHERE e.isDeleted = false
+        AND n1.isDeleted = false
+        AND n2.isDeleted = false
+        AND w.isDeleted = false
+        AND w.isPublished = true
+        AND w.visibility = com.knowledgenetwork.domain.model.Visibility.PUBLIC
+        AND LOWER(n1.label) = LOWER(:conceptLabel)
+        AND LOWER(n2.label) != LOWER(:conceptLabel)
+        GROUP BY n2.label
+        ORDER BY COUNT(n2.id) DESC
+    """)
+    List<Object[]> findPublicRelatedConceptLabels(@Param("conceptLabel") String conceptLabel, Pageable pageable);
+
+    @Query("""
+        SELECT n.label, COUNT(n.id) FROM Node n
+        JOIN n.workspace w
+        WHERE n.isDeleted = false
+        AND w.isDeleted = false
+        AND w.isPublished = true
+        AND w.visibility = com.knowledgenetwork.domain.model.Visibility.PUBLIC
+        AND w.owner = :owner
+        GROUP BY n.label
+        ORDER BY COUNT(n.id) DESC
+    """)
+    List<Object[]> findTopConceptsByCreator(@Param("owner") User owner, Pageable pageable);
 }
+

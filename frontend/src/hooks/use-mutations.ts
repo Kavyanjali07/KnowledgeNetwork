@@ -476,6 +476,43 @@ export function useDeleteGraph() {
   });
 }
 
+export function usePublishGraph() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+  return useMutation({
+    mutationFn: (req: { id: string; licenseType?: any; customAttribution?: string }) =>
+      graphApi.publish(req.id, { licenseType: req.licenseType, customAttribution: req.customAttribution }),
+    onSuccess: (data, variables) => {
+      queryClient.setQueryData(["graph", variables.id], data.data);
+      queryClient.invalidateQueries({ queryKey: ["graphs"] });
+      queryClient.invalidateQueries({ queryKey: ["graph", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      addToast({ type: "success", title: "Network Published", description: "Your Network is now published and publicly accessible." });
+    },
+    onError: (error: any) => {
+      addToast({ type: "error", title: "Publishing Failed", description: error.message || "Failed to publish Network." });
+    }
+  });
+}
+
+export function useUnpublishGraph() {
+  const queryClient = useQueryClient();
+  const { addToast } = useToast();
+  return useMutation({
+    mutationFn: (id: string) => graphApi.unpublish(id),
+    onSuccess: (data, id) => {
+      queryClient.setQueryData(["graph", id], data.data);
+      queryClient.invalidateQueries({ queryKey: ["graphs"] });
+      queryClient.invalidateQueries({ queryKey: ["graph", id] });
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+      addToast({ type: "info", title: "Network Unpublished", description: "Your Network is now private and no longer publicly accessible." });
+    },
+    onError: (error: any) => {
+      addToast({ type: "error", title: "Unpublishing Failed", description: error.message || "Failed to unpublish Network." });
+    }
+  });
+}
+
 export function useCreateSnapshot(workspaceId: string) {
   const queryClient = useQueryClient();
   const { addToast } = useToast();

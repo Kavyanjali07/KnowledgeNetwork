@@ -130,6 +130,7 @@ class GraphVersioningServiceTest {
 
         Workspace workspace = new Workspace();
         workspace.setId(UUID.randomUUID());
+        workspace.setLicenseType(com.knowledgenetwork.domain.enums.LicenseType.CC_BY_4_0);
 
         User owner = new User();
         owner.setId(UUID.randomUUID());

@@ -15,5 +15,7 @@ public interface GraphMapper {
     @Mapping(target = "ownerName", expression = "java(workspace.getOwner() != null ? workspace.getOwner().getFirstName() + \" \" + workspace.getOwner().getLastName() : null)")
     @Mapping(target = "nodeCount", ignore = true)
     @Mapping(target = "edgeCount", ignore = true)
+    @Mapping(target = "derivativeCount", ignore = true)
+    @Mapping(target = "referenceCount", ignore = true)
     GraphResponse toGraphResponse(Workspace workspace);
 }

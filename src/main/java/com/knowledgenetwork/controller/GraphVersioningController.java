@@ -86,4 +86,12 @@ public class GraphVersioningController {
         GraphVersion version = graphVersioningService.restoreVersion(workspaceId, versionId);
         return ResponseEntity.ok(ApiResponse.success("Version restored successfully", version));
     }
+
+    @GetMapping("/{workspaceId}/provenance")
+    @Operation(summary = "Get derivation lineage and provenance metadata for a workspace")
+    public ResponseEntity<ApiResponse<GraphForkResponse>> getProvenance(
+            @PathVariable UUID workspaceId) {
+        GraphForkResponse response = graphVersioningService.getProvenance(workspaceId);
+        return ResponseEntity.ok(ApiResponse.success("Provenance retrieved successfully", response));
+    }
 }

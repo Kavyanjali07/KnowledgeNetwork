@@ -21,10 +21,10 @@ export function SearchPage() {
         transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
       >
         <div>
-          <p className="text-sm text-muted-foreground">Advanced search</p>
-          <h1 className="text-2xl font-semibold tracking-[-0.015em] md:text-4xl">Knowledge graph search</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Search across nodes, edges, tags, people, workspaces, and commands. Use filters, tag queries, and keyboard shortcuts to navigate instantly.
+          <p className="text-sm text-cyan-400">Search & Explore</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-white md:text-4xl">Knowledge search</h1>
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-slate-400">
+            Search concepts, relationships, networks, and commands across all your authorized workspaces. Use keyboard shortcuts to navigate instantly.
           </p>
         </div>
       </motion.div>

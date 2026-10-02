@@ -218,6 +218,8 @@ class FullUserJourneysTest {
         WorkspaceResponse wsA = workspaceService.createWorkspace(wsReq);
 
         Workspace workspaceA = workspaceRepository.findById(wsA.getId()).orElseThrow();
+        workspaceA.setLicenseType(com.knowledgenetwork.domain.enums.LicenseType.CC_BY_4_0);
+        workspaceRepository.save(workspaceA);
         workspaceMemberRepository.save(new WorkspaceMember(workspaceA, userB, WorkspaceRole.VIEWER));
 
         GraphVersion versionA = graphVersioningService.createSnapshot(wsA.getId(), "v1.0", "Initial release");

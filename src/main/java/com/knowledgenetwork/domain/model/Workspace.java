@@ -29,6 +29,19 @@ public class Workspace extends BaseEntity {
     @Column(name = "visibility", nullable = false, length = 20)
     private Visibility visibility = Visibility.PRIVATE;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "license_type", nullable = false, length = 50)
+    private com.knowledgenetwork.domain.enums.LicenseType licenseType = com.knowledgenetwork.domain.enums.LicenseType.ALL_RIGHTS_RESERVED;
+
+    @Column(name = "is_published", nullable = false)
+    private boolean isPublished = false;
+
+    @Column(name = "published_at")
+    private java.time.Instant publishedAt;
+
+    @Column(name = "custom_attribution", columnDefinition = "TEXT")
+    private String customAttribution;
+
     public Workspace() {
     }
 
@@ -84,6 +97,38 @@ public class Workspace extends BaseEntity {
 
     public void setVisibility(Visibility visibility) {
         this.visibility = visibility != null ? visibility : Visibility.PRIVATE;
+    }
+
+    public com.knowledgenetwork.domain.enums.LicenseType getLicenseType() {
+        return licenseType;
+    }
+
+    public void setLicenseType(com.knowledgenetwork.domain.enums.LicenseType licenseType) {
+        this.licenseType = licenseType != null ? licenseType : com.knowledgenetwork.domain.enums.LicenseType.ALL_RIGHTS_RESERVED;
+    }
+
+    public boolean isPublished() {
+        return isPublished;
+    }
+
+    public void setPublished(boolean published) {
+        isPublished = published;
+    }
+
+    public java.time.Instant getPublishedAt() {
+        return publishedAt;
+    }
+
+    public void setPublishedAt(java.time.Instant publishedAt) {
+        this.publishedAt = publishedAt;
+    }
+
+    public String getCustomAttribution() {
+        return customAttribution;
+    }
+
+    public void setCustomAttribution(String customAttribution) {
+        this.customAttribution = customAttribution;
     }
 
     public void addMember(WorkspaceMember member) {

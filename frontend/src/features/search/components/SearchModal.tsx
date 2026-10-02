@@ -34,10 +34,10 @@ interface SearchModalProps {
 }
 
 const CATEGORY_TABS: { id: SearchResultCategory; label: string; icon: React.ElementType }[] = [
-  { id: "all", label: "All", icon: Search },
-  { id: "graphs", label: "Graphs", icon: Folder },
-  { id: "nodes", label: "Nodes", icon: FileText },
-  { id: "commands", label: "Commands", icon: Terminal }
+  { id: "all", label: "All Knowledge", icon: Search },
+  { id: "graphs", label: "Networks", icon: Folder },
+  { id: "nodes", label: "Concepts", icon: FileText },
+  { id: "commands", label: "Actions", icon: Terminal }
 ];
 
 const NODE_TYPES: NodeTypeFilter[] = ["all", "Concept", "Document", "Person", "Decision", "Service", "Feature"];
@@ -517,7 +517,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                                   : "border-slate-500/40 bg-slate-900 text-slate-300"
                               }`}
                             >
-                              {item.resultType}
+                              {item.resultType === "GRAPH" ? "Network" : item.resultType === "NODE" ? "Concept" : "Action"}
                             </span>
 
                             {/* Node Type Badge */}
@@ -542,7 +542,7 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                               </span>
                             )}
 
-                            {/* Visibility / Graph Node Count */}
+                            {/* Visibility / Graph Concept & Connection Count */}
                             {item.resultType === "GRAPH" && (
                               <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-400">
                                 {item.visibility === "PUBLIC" ? (
@@ -554,8 +554,8 @@ export function SearchModal({ onSelectAction }: SearchModalProps) {
                                     <Lock size={11} /> Private
                                   </span>
                                 )}
-                                <span>• {item.nodeCount ?? 0} nodes</span>
-                                <span>• {item.edgeCount ?? 0} edges</span>
+                                <span>• {item.nodeCount ?? 0} concepts</span>
+                                <span>• {item.edgeCount ?? 0} connections</span>
                               </div>
                             )}
                           </div>

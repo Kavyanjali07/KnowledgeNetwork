@@ -1,3 +1,5 @@
+import type { LicenseType } from "../../services";
+
 export type GraphVisibility = "Public" | "Workspace" | "Private";
 
 export type ManagedGraph = {
@@ -14,6 +16,12 @@ export type ManagedGraph = {
   forks: number;
   visibility: GraphVisibility;
   rawVisibility?: 'PUBLIC' | 'PRIVATE';
+  licenseType?: LicenseType;
+  isPublished?: boolean;
+  publishedAt?: string;
+  customAttribution?: string;
+  derivativeCount?: number;
+  referenceCount?: number;
   updatedAt: string;
   version?: number;
   nodes: number;

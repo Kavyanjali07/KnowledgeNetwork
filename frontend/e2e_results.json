@@ -1,0 +1,13 @@
+{
+  "testEnvironment": {
+    "frontendUrl": "http://localhost:5173",
+    "backendUrl": "http://localhost:8080",
+    "browser": "Chromium 1243"
+  },
+  "userAccounts": {
+    "userA": "usera@example.com",
+    "userB": "userb@example.com"
+  },
+  "sections": {},
+  "error": "fetch failed"
+}

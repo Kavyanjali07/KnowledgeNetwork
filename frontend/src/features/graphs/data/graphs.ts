@@ -34,6 +34,8 @@ export function mapGraphResponseToManagedGraph(graph: GraphResponse | WorkspaceR
   const nodeCount = (graph as GraphResponse).nodeCount ?? 0;
   const edgeCount = (graph as GraphResponse).edgeCount ?? 0;
 
+  const graphResp = graph as GraphResponse;
+
   return {
     id: graph.id,
     title,
@@ -45,9 +47,15 @@ export function mapGraphResponseToManagedGraph(graph: GraphResponse | WorkspaceR
     },
     tags: [],
     likes: 0,
-    forks: 0,
+    forks: graphResp.derivativeCount ?? 0,
     visibility,
     rawVisibility,
+    licenseType: graphResp.licenseType,
+    isPublished: graphResp.isPublished,
+    publishedAt: graphResp.publishedAt,
+    customAttribution: graphResp.customAttribution,
+    derivativeCount: graphResp.derivativeCount,
+    referenceCount: graphResp.referenceCount,
     updatedAt: graph.updatedAt,
     version: graph.version,
     nodes: nodeCount,

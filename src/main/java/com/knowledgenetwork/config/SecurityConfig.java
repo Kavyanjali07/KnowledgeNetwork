@@ -34,17 +34,20 @@ public class SecurityConfig {
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final String allowedOrigins;
+    private final boolean includeLocalOrigins;
 
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
-            @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins
+            @Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String allowedOrigins,
+            @Value("${app.cors.include-local-origins:true}") boolean includeLocalOrigins
     ) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.allowedOrigins = allowedOrigins;
+        this.includeLocalOrigins = includeLocalOrigins;
     }
 
     @Bean
@@ -58,9 +61,11 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/public/**").permitAll()
                         .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
                         .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/graphs/*", "/api/v1/graphs/*/nodes", "/api/v1/workspaces/*/nodes", "/api/v1/workspaces/*/edges", "/api/v1/graphs/*/provenance").permitAll()
                         .anyRequest().authenticated()
                 );
 
@@ -82,16 +87,24 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> patterns = new java.util.ArrayList<>(List.of(
-                "http://localhost:*",
-                "http://127.0.0.1:*",
-                "https://localhost:*",
-                "https://127.0.0.1:*"
-        ));
+        List<String> patterns = new java.util.ArrayList<>();
+        if (includeLocalOrigins) {
+            patterns.addAll(List.of(
+                    "http://localhost:*",
+                    "http://127.0.0.1:*",
+                    "https://localhost:*",
+                    "https://127.0.0.1:*"
+            ));
+        }
         Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
                 .forEach(patterns::add);
+
+        if (patterns.isEmpty()) {
+            patterns.add("http://localhost:5173");
+        }
+
         configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));

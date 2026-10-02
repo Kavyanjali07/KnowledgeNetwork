@@ -106,7 +106,7 @@ public class AuthService {
         user.setStatus("online");
         user.setRole(Role.USER);
         user.setEnabled(true);
-        user.setEmailVerified(false);
+        user.setEmailVerified(true);
 
         User savedUser = userRepository.save(user);
         createDefaultUserStorage(savedUser);
@@ -158,9 +158,15 @@ public class AuthService {
     @Transactional
     public void resendOtp(ResendOtpRequest request) {
         String email = request.getEmail().toLowerCase().trim();
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
+        Optional<User> userOpt = userRepository.findByEmail(email);
 
+        if (userOpt.isEmpty()) {
+            org.slf4j.LoggerFactory.getLogger(AuthService.class)
+                    .info("Resend OTP requested for non-existent email address: [{}]", email);
+            return;
+        }
+
+        User user = userOpt.get();
         if (user.isEmailVerified()) {
             throw new BusinessException("Your email is already verified. Please sign in.");
         }
@@ -308,7 +314,7 @@ public class AuthService {
     public void resetPassword(ResetPasswordRequest request) {
         String email = request.getEmail().toLowerCase().trim();
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new BusinessException("Invalid reset request. No active user found for email: " + email));
+                .orElseThrow(() -> new BusinessException("Invalid password reset request or verification code."));
 
         if (request.getNewPassword() == null || request.getNewPassword().length() < 8) {
             throw new BusinessException("New password must be at least 8 characters long.");

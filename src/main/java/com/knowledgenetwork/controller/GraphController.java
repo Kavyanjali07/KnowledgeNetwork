@@ -74,6 +74,25 @@ public class GraphController {
         return ResponseEntity.ok(ApiResponse.success("Knowledge graph updated successfully", response));
     }
 
+    @PutMapping("/{graphId}/publish")
+    @Operation(summary = "Publish a knowledge graph and set license metadata")
+    public ResponseEntity<ApiResponse<GraphResponse>> publishGraph(
+            @PathVariable UUID graphId,
+            @RequestBody(required = false) com.knowledgenetwork.domain.payload.request.GraphPublishRequest request) {
+        com.knowledgenetwork.domain.enums.LicenseType license = request != null ? request.getLicenseType() : com.knowledgenetwork.domain.enums.LicenseType.ALL_RIGHTS_RESERVED;
+        String attribution = request != null ? request.getCustomAttribution() : null;
+        GraphResponse response = graphService.publishGraph(graphId, license, attribution);
+        return ResponseEntity.ok(ApiResponse.success("Knowledge graph published successfully", response));
+    }
+
+    @PutMapping("/{graphId}/unpublish")
+    @Operation(summary = "Unpublish a knowledge graph and revert to private status")
+    public ResponseEntity<ApiResponse<GraphResponse>> unpublishGraph(
+            @PathVariable UUID graphId) {
+        GraphResponse response = graphService.unpublishGraph(graphId);
+        return ResponseEntity.ok(ApiResponse.success("Knowledge graph unpublished successfully", response));
+    }
+
     @DeleteMapping("/{graphId}")
     @Operation(summary = "Delete a knowledge graph")
     public ResponseEntity<ApiResponse<Void>> deleteGraph(

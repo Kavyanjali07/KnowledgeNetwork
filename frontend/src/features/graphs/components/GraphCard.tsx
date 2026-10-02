@@ -1,10 +1,11 @@
 import { memo, useState } from "react";
 import { motion } from "framer-motion";
-import { Eye, GitFork, Heart, Lock, MoreHorizontal, Shield, Trash2, Edit3, Link2, Users } from "lucide-react";
+import { Eye, GitFork, Lock, MoreHorizontal, Shield, Trash2, Edit3, Link2, Users } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import type { ManagedGraph } from "../types";
 import { GraphThumbnail } from "./GraphThumbnail";
 import { useNavigate } from "react-router-dom";
+import { LicenseBadge } from "../../graph/components/LicenseBadge";
 
 type GraphCardProps = {
   graph: ManagedGraph;
@@ -152,28 +153,31 @@ export const GraphCard = memo(function GraphCard({ graph, onEdit, onDelete }: Gr
               <p className="text-xs text-muted-foreground">Updated {formatUpdatedDate(graph.updatedAt)}</p>
             </div>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/18 px-2.5 py-1 text-xs text-muted-foreground">
-            <VisibilityIcon size={13} />
-            {graph.visibility}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 rounded-full border border-white/10 bg-black/18 px-2.5 py-1 text-xs text-muted-foreground">
+              <VisibilityIcon size={13} />
+              {graph.visibility}
+            </span>
+            {graph.licenseType && (
+              <LicenseBadge licenseType={graph.licenseType} />
+            )}
+          </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-4 gap-2 text-xs text-muted-foreground">
-          <div className="rounded-lg border border-white/10 bg-black/16 p-2">
-            <Heart size={14} className="mb-1 text-rose-200" />
-            {formatNumber(graph.likes)}
+        <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/16 p-2.5">
+            <Shield size={14} className="text-cyan-300" />
+            <div>
+              <p className="font-semibold text-white">{formatNumber(graph.nodes)}</p>
+              <p className="text-[10px] text-slate-400">Concepts</p>
+            </div>
           </div>
-          <div className="rounded-lg border border-white/10 bg-black/16 p-2">
-            <GitFork size={14} className="mb-1 text-cyan-200" />
-            {formatNumber(graph.forks)}
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/16 p-2">
-            <Shield size={14} className="mb-1 text-emerald-200" />
-            {formatNumber(graph.nodes)}
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/16 p-2">
-            <Users size={14} className="mb-1 text-violet-200" />
-            {formatNumber(graph.edges)}
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/16 p-2.5">
+            <GitFork size={14} className="text-violet-300" />
+            <div>
+              <p className="font-semibold text-white">{formatNumber(graph.edges)}</p>
+              <p className="text-[10px] text-slate-400">Relationships</p>
+            </div>
           </div>
         </div>
       </div>
