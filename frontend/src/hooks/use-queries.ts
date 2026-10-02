@@ -27,6 +27,15 @@ export function useGraph(id: string) {
   });
 }
 
+export function useGraphProvenance(workspaceId: string) {
+  return useQuery({
+    queryKey: ["graph-provenance", workspaceId],
+    queryFn: () => graphApi.getProvenance(workspaceId).then((response) => response.data),
+    enabled: Boolean(workspaceId),
+    retry: false
+  });
+}
+
 export function useCurrentWorkspace() {
   const query = useWorkspaces();
   return {

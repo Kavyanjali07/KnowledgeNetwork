@@ -195,11 +195,11 @@ public class SocialService {
     @Transactional
     public void followUser(UUID followeeId) {
         UUID currentUserId = SecurityUtils.getCurrentUserId();
-        User follower = getUser(currentUserId);
-        User followee = getUser(followeeId);
         if (Objects.equals(currentUserId, followeeId)) {
             throw new BusinessException("Users cannot follow themselves");
         }
+        User follower = getUser(currentUserId);
+        User followee = getUser(followeeId);
         Workspace workspace = getWorkspaceForUser(follower);
         if (socialFollowRepository.existsByFollowerAndFollowee(follower, followee)) {
             throw new BusinessException("User already followed");
@@ -242,30 +242,35 @@ public class SocialService {
     @Transactional(readOnly = true)
     public long getLikeCount(UUID postId) {
         SocialPost post = getPostById(postId);
+        workspaceSecurityValidator.validateReadAccess(post.getWorkspace(), SecurityUtils.getCurrentUserPrincipal().map(com.knowledgenetwork.security.UserPrincipal::getId).orElse(null));
         return socialLikeRepository.findByPost(post).size();
     }
 
     @Transactional(readOnly = true)
     public long getFavoriteCount(UUID postId) {
         SocialPost post = getPostById(postId);
+        workspaceSecurityValidator.validateReadAccess(post.getWorkspace(), SecurityUtils.getCurrentUserPrincipal().map(com.knowledgenetwork.security.UserPrincipal::getId).orElse(null));
         return socialFavoriteRepository.findByPost(post).size();
     }
 
     @Transactional(readOnly = true)
     public long getCommentCount(UUID postId) {
         SocialPost post = getPostById(postId);
+        workspaceSecurityValidator.validateReadAccess(post.getWorkspace(), SecurityUtils.getCurrentUserPrincipal().map(com.knowledgenetwork.security.UserPrincipal::getId).orElse(null));
         return socialCommentRepository.findByPostAndIsDeletedFalse(post, null).getSize();
     }
 
     @Transactional(readOnly = true)
     public List<String> getTags(UUID postId) {
         SocialPost post = getPostById(postId);
+        workspaceSecurityValidator.validateReadAccess(post.getWorkspace(), SecurityUtils.getCurrentUserPrincipal().map(com.knowledgenetwork.security.UserPrincipal::getId).orElse(null));
         return socialTagRepository.findByPost(post).stream().map(SocialTag::getTag).toList();
     }
 
     @Transactional(readOnly = true)
     public boolean isLikedByUser(UUID postId, UUID userId) {
         SocialPost post = getPostById(postId);
+        workspaceSecurityValidator.validateReadAccess(post.getWorkspace(), userId);
         User user = getUser(userId);
         return socialLikeRepository.existsByPostAndUser(post, user);
     }
@@ -273,6 +278,7 @@ public class SocialService {
     @Transactional(readOnly = true)
     public boolean isFavoritedByUser(UUID postId, UUID userId) {
         SocialPost post = getPostById(postId);
+        workspaceSecurityValidator.validateReadAccess(post.getWorkspace(), userId);
         User user = getUser(userId);
         return socialFavoriteRepository.existsByPostAndUser(post, user);
     }
@@ -283,8 +289,7 @@ public class SocialService {
     }
 
     private Workspace getWorkspaceForPost(UUID postId) {
-        SocialPost post = socialPostRepository.findById(UUID.fromString(postId.toString()))
-                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+        SocialPost post = getPostById(postId);
         return post.getWorkspace();
     }
 
@@ -302,11 +307,12 @@ public class SocialService {
 
     private SocialPost getPost(UUID postId, Workspace workspace) {
         return socialPostRepository.findByIdAndWorkspaceAndIsDeletedFalse(UUID.fromString(postId.toString()), workspace)
-                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+                .orElseGet(() -> getPostById(postId));
     }
 
     private SocialPost getPostById(UUID postId) {
-        return socialPostRepository.findById(UUID.fromString(postId.toString()))
-                .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId));
+        return socialPostRepository.findByIdAndIsDeletedFalse(postId)
+                .orElseGet(() -> socialPostRepository.findById(UUID.fromString(postId.toString()))
+                        .orElseThrow(() -> new ResourceNotFoundException("Post", "id", postId)));
     }
 }

@@ -137,7 +137,7 @@ function mapApiEdgeToReactFlowEdge(apiEdge: any): Edge {
   };
 }
 
-function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
+function GraphEditorCanvas({ workspaceId, isReadOnly = false }: { workspaceId: string; isReadOnly?: boolean }) {
   const { addToast } = useToast();
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [connectionMode, setConnectionMode] = useState(false);
@@ -511,16 +511,17 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
         <div className="pointer-events-none absolute left-4 top-4 z-20">
           <GraphToolbar
             autosaveState={autosaveState}
-            onAddNode={() => openCreateModal()}
-            onConnect={() => setConnectionMode(true)}
+            onAddNode={() => !isReadOnly && openCreateModal()}
+            onConnect={() => !isReadOnly && setConnectionMode(true)}
             onSelect={() => {
               setConnectionMode(false);
               setNodes((currentNodes) => currentNodes.map((node) => ({ ...node, selected: false })));
               setEdges((currentEdges) => currentEdges.map((edge) => ({ ...edge, selected: false })));
             }}
             onFitView={fitView}
-            onDeleteSelected={deleteSelected}
+            onDeleteSelected={() => !isReadOnly && deleteSelected()}
             onSearch={openSearch}
+            isReadOnly={isReadOnly}
           />
         </div>
 
@@ -528,10 +529,13 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
           nodes={internalNodes}
           edges={internalEdges}
           nodeTypes={nodeTypes}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodesConnectable={connectionMode}
+          onNodesChange={isReadOnly ? undefined : onNodesChange}
+          onEdgesChange={isReadOnly ? undefined : onEdgesChange}
+          nodesDraggable={!isReadOnly}
+          nodesConnectable={!isReadOnly && connectionMode}
+          elementsSelectable={true}
           onNodeDragStop={(_, node) => {
+            if (isReadOnly) return;
             const typedNode = node as Node<KnowledgeNodeData, "knowledgeNode">;
             if (!typedNode.id.startsWith("node-") && typedNode.data.version !== undefined) {
               setAutosaveState("saving");
@@ -559,7 +563,7 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
               });
             }
           }}
-          onConnect={onConnect}
+          onConnect={isReadOnly ? undefined : onConnect}
           defaultEdgeOptions={defaultEdgeOptions}
           proOptions={{ hideAttribution: true }}
           minZoom={0.18}
@@ -569,17 +573,21 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
             event.preventDefault();
             setNodes((currentNodes) => currentNodes.map((item) => ({ ...item, selected: item.id === node.id })));
             setEdges((currentEdges) => currentEdges.map((e) => ({ ...e, selected: false })));
-            setContextMenu({
-              x: event.clientX,
-              y: event.clientY,
-              flowX: node.position.x + 40,
-              flowY: node.position.y + 40
-            });
+            if (!isReadOnly) {
+              setContextMenu({
+                x: event.clientX,
+                y: event.clientY,
+                flowX: node.position.x + 40,
+                flowY: node.position.y + 40
+              });
+            }
           }}
           onPaneContextMenu={(event) => {
             event.preventDefault();
-            const position = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
-            setContextMenu({ x: event.clientX, y: event.clientY, flowX: position.x, flowY: position.y });
+            if (!isReadOnly) {
+              const position = reactFlow.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+              setContextMenu({ x: event.clientX, y: event.clientY, flowX: position.x, flowY: position.y });
+            }
           }}
           className="knowledge-flow"
         >
@@ -814,10 +822,10 @@ function GraphEditorCanvas({ workspaceId }: { workspaceId: string }) {
   );
 }
 
-export function GraphEditor({ workspaceId }: { workspaceId: string }) {
+export function GraphEditor({ workspaceId, isReadOnly = false }: { workspaceId: string; isReadOnly?: boolean }) {
   return (
     <ReactFlowProvider>
-      <GraphEditorCanvas workspaceId={workspaceId} />
+      <GraphEditorCanvas workspaceId={workspaceId} isReadOnly={isReadOnly} />
     </ReactFlowProvider>
   );
 }

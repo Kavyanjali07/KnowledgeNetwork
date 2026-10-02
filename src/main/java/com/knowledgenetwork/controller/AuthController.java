@@ -15,6 +15,7 @@ import com.knowledgenetwork.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
@@ -30,15 +31,20 @@ import java.util.UUID;
 public class AuthController {
 
     private final AuthService authService;
+    private final boolean secureCookie;
 
-    public AuthController(AuthService authService) {
+    public AuthController(
+            AuthService authService,
+            @Value("${app.cookie.secure:false}") boolean secureCookie
+    ) {
         this.authService = authService;
+        this.secureCookie = secureCookie;
     }
 
     private ResponseCookie createRefreshTokenCookie(String refreshToken) {
         return ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(false) // Local dev (HTTPS proxy in production)
+                .secure(secureCookie)
                 .path("/api/v1/auth")
                 .maxAge(7 * 24 * 60 * 60)
                 .sameSite("Lax")
@@ -48,7 +54,7 @@ public class AuthController {
     private ResponseCookie createCleanRefreshTokenCookie() {
         return ResponseCookie.from("refreshToken", "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(secureCookie)
                 .path("/api/v1/auth")
                 .maxAge(0)
                 .sameSite("Lax")

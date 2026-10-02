@@ -15,6 +15,10 @@ public class GraphCreateRequest {
 
     private Visibility visibility = Visibility.PRIVATE;
 
+    private com.knowledgenetwork.domain.enums.LicenseType licenseType = com.knowledgenetwork.domain.enums.LicenseType.ALL_RIGHTS_RESERVED;
+
+    private boolean isPublished = false;
+
     public GraphCreateRequest() {
     }
 
@@ -54,5 +58,21 @@ public class GraphCreateRequest {
 
     public void setVisibility(Visibility visibility) {
         this.visibility = visibility != null ? visibility : Visibility.PRIVATE;
+    }
+
+    public com.knowledgenetwork.domain.enums.LicenseType getLicenseType() {
+        return licenseType;
+    }
+
+    public void setLicenseType(com.knowledgenetwork.domain.enums.LicenseType licenseType) {
+        this.licenseType = licenseType != null ? licenseType : com.knowledgenetwork.domain.enums.LicenseType.ALL_RIGHTS_RESERVED;
+    }
+
+    public boolean isPublished() {
+        return isPublished;
+    }
+
+    public void setPublished(boolean published) {
+        isPublished = published;
     }
 }

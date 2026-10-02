@@ -59,4 +59,12 @@ public class TestFixtures {
         EdgeType edgeType = createEdgeType(workspace, relationshipType + "_" + java.util.UUID.randomUUID().toString().substring(0, 8));
         return createEdge(workspace, edgeType, source, target);
     }
+
+    public static SocialPost createSocialPost(Workspace workspace, User author, String content) {
+        return new SocialPost(workspace, author, content, "GRAPH", workspace.getId());
+    }
+
+    public static Notification createNotification(Workspace workspace, User recipient, String type, String message) {
+        return new Notification(workspace, recipient, type, message);
+    }
 }

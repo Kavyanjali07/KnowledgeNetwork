@@ -270,6 +270,32 @@ The Vite dev server will start at `http://localhost:5173` with proxy configurati
 
 ---
 
+## 🌐 Production Deployment
+
+KnowledgeNetwork is designed to be cleanly deployed to container hosts (AWS ECS, GCP Cloud Run, Docker Engine) or Kubernetes with a managed PostgreSQL 16 database.
+
+For complete step-by-step production deployment instructions, backup protocols, and security configurations, see the **[DEPLOYMENT.md](file:///home/kavya/Documents/Projects/KnowledgeNetwork/DEPLOYMENT.md)** guide.
+
+### Key Deployment Contract
+
+1. **Frontend**: Static React SPA bundled into the Spring Boot container or served via CDN pointing to `VITE_API_URL`.
+2. **Backend**: Container running Java 21 with `SPRING_PROFILES_ACTIVE=prod`.
+3. **Database**: PostgreSQL 16 instance with Flyway migrations executing automatically on startup.
+
+### Production Environment Variables Summary
+
+```bash
+SPRING_PROFILES_ACTIVE=prod
+SPRING_DATASOURCE_URL=jdbc:postgresql://your-db-host:5432/knowledgenetwork_db
+SPRING_DATASOURCE_USERNAME=kn_admin
+SPRING_DATASOURCE_PASSWORD=your-secure-db-password
+APP_JWT_SECRET=your-64-character-hexadecimal-secret-string
+APP_CORS_ALLOWED_ORIGINS=https://app.yourdomain.com
+APP_COOKIE_SECURE=true
+```
+
+---
+
 ## 🗄️ Database & Schema Migrations
 
 KnowledgeNetwork uses **Flyway** for database version management. Database schemas are located in `src/main/resources/db/migration/`:

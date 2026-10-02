@@ -86,6 +86,7 @@ export function LoginForm() {
           onSubmit={handleSubmit(onSubmit)}
         >
           <AuthField
+            id="email"
             label="Email"
             type="email"
             autoComplete="email"
@@ -96,6 +97,7 @@ export function LoginForm() {
 
           <div className="relative">
             <AuthField
+              id="password"
               label="Password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"

@@ -198,6 +198,12 @@ public class GraphVersioningService {
     public GraphForkResponse createFork(UUID workspaceId, UUID sourceVersionId, String name, String description) {
         Workspace sourceWorkspace = getWorkspace(workspaceId);
         workspaceSecurityValidator.validateReadAccess(sourceWorkspace, SecurityUtils.getCurrentUserId());
+
+        com.knowledgenetwork.domain.enums.LicenseType sourceLicense = sourceWorkspace.getLicenseType() != null ? sourceWorkspace.getLicenseType() : com.knowledgenetwork.domain.enums.LicenseType.ALL_RIGHTS_RESERVED;
+        if (!sourceLicense.allowsDerivatives()) {
+            throw new BusinessException("Derivation is not permitted under the source network's license (" + sourceLicense + ")");
+        }
+
         String currentUserId = SecurityUtils.getCurrentUserId().toString();
         GraphVersion sourceVersion = graphVersionRepository.findById(sourceVersionId)
                 .orElseThrow(() -> new ResourceNotFoundException("GraphVersion", "id", sourceVersionId));
@@ -211,6 +217,7 @@ public class GraphVersioningService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", "id", SecurityUtils.getCurrentUserId()));
 
         Workspace forkWorkspace = new Workspace(name, description, owner);
+        forkWorkspace.setLicenseType(sourceLicense);
         forkWorkspace.setCreatedBy(currentUserId);
         forkWorkspace.setUpdatedBy(currentUserId);
         forkWorkspace = workspaceRepository.save(forkWorkspace);
@@ -220,6 +227,10 @@ public class GraphVersioningService {
         GraphFork fork = new GraphFork();
         fork.setWorkspace(forkWorkspace);
         fork.setSourceVersion(sourceVersion);
+        fork.setSourceWorkspace(sourceWorkspace);
+        fork.setSourceLicense(sourceLicense);
+        fork.setOriginalCreator(sourceWorkspace.getOwner());
+        fork.setDerivative(true);
         fork.setName(name);
         fork.setDescription(description);
         fork.setCreatedAt(Instant.now());
@@ -249,6 +260,13 @@ public class GraphVersioningService {
         response.setDescription(description);
         response.setCreatedAt(fork.getCreatedAt());
         response.setCreatedBy(currentUserId);
+        response.setSourceWorkspaceId(sourceWorkspace.getId());
+        response.setSourceLicense(sourceLicense);
+        if (sourceWorkspace.getOwner() != null) {
+            response.setOriginalCreatorId(sourceWorkspace.getOwner().getId());
+            response.setOriginalCreatorName(sourceWorkspace.getOwner().getFirstName() + " " + sourceWorkspace.getOwner().getLastName());
+        }
+        response.setDerivative(true);
         return response;
     }
 
@@ -262,6 +280,35 @@ public class GraphVersioningService {
             throw new BusinessException("Version does not belong to workspace");
         }
         return version;
+    }
+
+    @Transactional(readOnly = true)
+    public GraphForkResponse getProvenance(UUID workspaceId) {
+        Workspace workspace = getWorkspace(workspaceId);
+        workspaceSecurityValidator.validateReadAccess(workspace, SecurityUtils.getCurrentUserId());
+        List<GraphFork> forks = graphForkRepository.findByWorkspace(workspace);
+        if (forks.isEmpty()) {
+            return null;
+        }
+        GraphFork fork = forks.get(0);
+        GraphForkResponse response = new GraphForkResponse();
+        response.setId(fork.getId());
+        response.setWorkspaceId(workspace.getId());
+        response.setSourceVersionId(fork.getSourceVersion() != null ? fork.getSourceVersion().getId() : null);
+        response.setName(fork.getName());
+        response.setDescription(fork.getDescription());
+        response.setCreatedAt(fork.getCreatedAt());
+        response.setCreatedBy(fork.getCreatedBy());
+        if (fork.getSourceWorkspace() != null) {
+            response.setSourceWorkspaceId(fork.getSourceWorkspace().getId());
+        }
+        response.setSourceLicense(fork.getSourceLicense());
+        if (fork.getOriginalCreator() != null) {
+            response.setOriginalCreatorId(fork.getOriginalCreator().getId());
+            response.setOriginalCreatorName(fork.getOriginalCreator().getFirstName() + " " + fork.getOriginalCreator().getLastName());
+        }
+        response.setDerivative(fork.isDerivative());
+        return response;
     }
 
 

@@ -11,6 +11,8 @@ import { GraphCard } from "../components/GraphCard";
 import { mapGraphResponseToManagedGraph } from "../data/graphs";
 import { useGraphs } from "../../../hooks/use-queries";
 import { useCreateGraph, useUpdateGraph, useDeleteGraph } from "../../../hooks/use-mutations";
+import { LicenseSelector } from "../../graph/components/LicenseSelector";
+import type { LicenseType } from "../../../services/graphApi";
 
 type SortMode = "updated" | "likes" | "forks" | "nodes";
 type VisibilityFilter = "All" | "Public" | "Private";
@@ -47,6 +49,7 @@ export function GraphManagementPage() {
   const [formTitle, setFormTitle] = useState("");
   const [formDescription, setFormDescription] = useState("");
   const [formVisibility, setFormVisibility] = useState<"PUBLIC" | "PRIVATE">("PRIVATE");
+  const [formLicenseType, setFormLicenseType] = useState<LicenseType>("CC_BY_4_0");
   const [formError, setFormError] = useState<string | null>(null);
 
   // Mutations
@@ -91,6 +94,7 @@ export function GraphManagementPage() {
     setFormTitle("");
     setFormDescription("");
     setFormVisibility("PRIVATE");
+    setFormLicenseType("CC_BY_4_0");
     setFormError(null);
     setIsCreateOpen(true);
   };
@@ -100,6 +104,7 @@ export function GraphManagementPage() {
     setFormTitle(graph.title);
     setFormDescription(graph.description);
     setFormVisibility(graph.rawVisibility || (graph.visibility === "Public" ? "PUBLIC" : "PRIVATE"));
+    setFormLicenseType(graph.licenseType || "CC_BY_4_0");
     setFormError(null);
   };
 
@@ -114,7 +119,8 @@ export function GraphManagementPage() {
       await createGraph.mutateAsync({
         title: formTitle.trim(),
         description: formDescription.trim(),
-        visibility: formVisibility
+        visibility: formVisibility,
+        licenseType: formVisibility === "PUBLIC" ? formLicenseType : undefined
       });
       setIsCreateOpen(false);
     } catch (err: any) {
@@ -208,12 +214,12 @@ export function GraphManagementPage() {
           <p className="text-sm text-muted-foreground">Graph management</p>
           <h1 className="mt-2 text-2xl font-semibold tracking-[-0.015em] md:text-4xl">Knowledge graph library</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Browse, create, edit, and explore your team&apos;s real persistent knowledge graphs.
+            Create a connected body of knowledge you can explore, evolve, and optionally publish.
           </p>
         </div>
         <Button className="h-10 gap-2 bg-cyan-500 text-slate-950 font-semibold hover:bg-cyan-400" onClick={openCreateModal}>
           <Plus size={18} />
-          New graph
+          Create Network
         </Button>
       </motion.div>
 
@@ -320,10 +326,13 @@ export function GraphManagementPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/10 bg-[rgba(10,15,28,0.96)] p-6 shadow-2xl backdrop-blur-2xl"
+              className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl border border-white/10 bg-[rgba(10,15,28,0.96)] p-6 shadow-2xl backdrop-blur-2xl"
             >
               <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                <h3 className="text-xl font-semibold text-slate-100">Create New Knowledge Graph</h3>
+                <div>
+                  <h3 className="text-xl font-semibold text-slate-100">Create Knowledge Network</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Create a connected body of knowledge you can explore, evolve, and optionally publish.</p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsCreateOpen(false)}
@@ -342,12 +351,12 @@ export function GraphManagementPage() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Graph Title <span className="text-rose-400">*</span>
+                    Network Title <span className="text-rose-400">*</span>
                   </label>
                   <Input
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
-                    placeholder="e.g. AI System Architecture"
+                    placeholder="e.g. Distributed Consensus Systems"
                     className="mt-1.5"
                     maxLength={150}
                     required
@@ -356,12 +365,12 @@ export function GraphManagementPage() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Description
+                    Description / Scope
                   </label>
                   <textarea
                     value={formDescription}
                     onChange={(e) => setFormDescription(e.target.value)}
-                    placeholder="Brief summary of nodes, domain scope, or purpose..."
+                    placeholder="Describe what concepts or relationships this network will contain..."
                     rows={3}
                     maxLength={2000}
                     className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-slate-100 placeholder:text-muted-foreground focus:border-cyan-400 focus:outline-none"
@@ -370,42 +379,51 @@ export function GraphManagementPage() {
 
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                    Visibility
+                    Network Access & Visibility
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setFormVisibility("PRIVATE")}
-                      className={`flex flex-col items-start rounded-xl border p-3 text-left transition ${
+                      className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition ${
                         formVisibility === "PRIVATE"
-                          ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100"
+                          ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100 shadow-sm"
                           : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.06]"
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-medium text-sm">
-                        <Lock size={16} className={formVisibility === "PRIVATE" ? "text-cyan-400" : ""} />
-                        Private
+                      <div className="flex items-center gap-2 font-semibold text-sm text-slate-100">
+                        <Lock size={16} className={formVisibility === "PRIVATE" ? "text-cyan-400" : "text-slate-400"} />
+                        Private Network
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">Only accessible by you and added workspace members.</p>
+                      <p className="mt-1 text-xs text-muted-foreground leading-snug">Only you and people you explicitly share the workspace with can access this Network.</p>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setFormVisibility("PUBLIC")}
-                      className={`flex flex-col items-start rounded-xl border p-3 text-left transition ${
+                      className={`flex flex-col items-start rounded-xl border p-3.5 text-left transition ${
                         formVisibility === "PUBLIC"
-                          ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100"
+                          ? "border-cyan-400/50 bg-cyan-400/10 text-cyan-100 shadow-sm"
                           : "border-white/10 bg-white/[0.03] text-slate-400 hover:bg-white/[0.06]"
                       }`}
                     >
-                      <div className="flex items-center gap-2 font-medium text-sm">
-                        <Eye size={16} className={formVisibility === "PUBLIC" ? "text-cyan-400" : ""} />
-                        Public
+                      <div className="flex items-center gap-2 font-semibold text-sm text-slate-100">
+                        <Eye size={16} className={formVisibility === "PUBLIC" ? "text-cyan-400" : "text-slate-400"} />
+                        Public Network
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">Visible to anyone on the platform to view and explore.</p>
+                      <p className="mt-1 text-xs text-muted-foreground leading-snug">Publish this Network so others can explore it.</p>
                     </button>
                   </div>
                 </div>
+
+                {formVisibility === "PUBLIC" && (
+                  <div className="pt-2 border-t border-white/10">
+                    <LicenseSelector
+                      value={formLicenseType}
+                      onChange={setFormLicenseType}
+                    />
+                  </div>
+                )}
 
                 <div className="mt-6 flex justify-end gap-3 border-t border-white/10 pt-4">
                   <Button type="button" variant="ghost" onClick={() => setIsCreateOpen(false)}>
@@ -417,7 +435,7 @@ export function GraphManagementPage() {
                     className="bg-cyan-500 text-slate-950 font-semibold hover:bg-cyan-400 gap-2"
                   >
                     {createGraph.isPending && <Loader2 size={16} className="animate-spin" />}
-                    Create Graph
+                    Create Network
                   </Button>
                 </div>
               </form>

@@ -11,4 +11,5 @@ import java.util.UUID;
 @Repository
 public interface GraphForkRepository extends JpaRepository<GraphFork, UUID> {
     List<GraphFork> findByWorkspace(Workspace workspace);
+    long countBySourceWorkspace(Workspace sourceWorkspace);
 }

@@ -30,6 +30,21 @@ public class GraphFork {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_workspace_id")
+    private Workspace sourceWorkspace;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "source_license", length = 50)
+    private com.knowledgenetwork.domain.enums.LicenseType sourceLicense;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "original_creator_id")
+    private User originalCreator;
+
+    @Column(name = "is_derivative", nullable = false)
+    private boolean isDerivative = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -90,5 +105,37 @@ public class GraphFork {
 
     public void setCreatedBy(String createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public Workspace getSourceWorkspace() {
+        return sourceWorkspace;
+    }
+
+    public void setSourceWorkspace(Workspace sourceWorkspace) {
+        this.sourceWorkspace = sourceWorkspace;
+    }
+
+    public com.knowledgenetwork.domain.enums.LicenseType getSourceLicense() {
+        return sourceLicense;
+    }
+
+    public void setSourceLicense(com.knowledgenetwork.domain.enums.LicenseType sourceLicense) {
+        this.sourceLicense = sourceLicense;
+    }
+
+    public User getOriginalCreator() {
+        return originalCreator;
+    }
+
+    public void setOriginalCreator(User originalCreator) {
+        this.originalCreator = originalCreator;
+    }
+
+    public boolean isDerivative() {
+        return isDerivative;
+    }
+
+    public void setDerivative(boolean derivative) {
+        isDerivative = derivative;
     }
 }

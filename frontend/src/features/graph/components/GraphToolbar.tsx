@@ -10,10 +10,30 @@ type GraphToolbarProps = {
   onFitView: () => void;
   onDeleteSelected: () => void;
   onSearch: () => void;
+  isReadOnly?: boolean;
 };
 
-export function GraphToolbar({ autosaveState, onAddNode, onConnect, onSelect, onFitView, onDeleteSelected, onSearch }: GraphToolbarProps) {
+export function GraphToolbar({ autosaveState, onAddNode, onConnect, onSelect, onFitView, onDeleteSelected, onSearch, isReadOnly = false }: GraphToolbarProps) {
   const autosaveLabel = autosaveState === "saving" ? "Saving" : autosaveState === "saved" ? "Saved" : "Idle";
+
+  if (isReadOnly) {
+    return (
+      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-xl border border-cyan-400/20 bg-[rgba(8,12,20,0.85)] p-2 shadow-glass backdrop-blur-2xl">
+        <div className="flex items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
+          <MousePointer2 size={14} className="text-cyan-300" />
+          Read-Only Exploration Mode
+        </div>
+        <Button variant="ghost" className="h-9 px-3" onClick={onFitView} title="Center and fit all nodes (F)">
+          <Maximize2 size={15} />
+          Fit View
+        </Button>
+        <Button variant="ghost" className="h-9 px-3" onClick={onSearch} title="Search concepts & relationships (⌘K)">
+          <Search size={15} />
+          Search
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[rgba(8,12,20,0.78)] p-2 shadow-glass backdrop-blur-2xl">

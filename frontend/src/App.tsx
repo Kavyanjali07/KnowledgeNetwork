@@ -7,6 +7,7 @@ import { RegisterPage } from "./features/auth/pages/RegisterPage";
 import { VerifyEmailPage } from "./features/auth/components/VerifyEmailPage";
 import { ForgotPasswordPage } from "./features/auth/pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./features/auth/pages/ResetPasswordPage";
+import { LandingPage } from "./features/landing/pages/LandingPage";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 
 function PageSkeleton() {
@@ -39,6 +40,17 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function LandingRoute() {
+  const { token, isLoading } = useAuth();
+  if (isLoading) {
+    return <PageSkeleton />;
+  }
+  if (token) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <LandingPage />;
+}
+
 function renderLazy(element: React.ReactNode) {
   return (
     <ErrorBoundary>
@@ -58,6 +70,9 @@ const ProfilePage = lazy(() => import("./features/profile/pages/ProfilePage").th
 const SettingsPage = lazy(() => import("./features/settings/pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const NotificationHistoryPage = lazy(() => import("./features/notifications/pages/NotificationHistoryPage").then(m => ({ default: m.NotificationHistoryPage })));
 const AuditLogPage = lazy(() => import("./features/audit/pages/AuditLogPage").then(m => ({ default: m.AuditLogPage })));
+const ExploreHubPage = lazy(() => import("./features/explore/pages/ExploreHubPage").then(m => ({ default: m.ExploreHubPage })));
+const ConceptOverviewPage = lazy(() => import("./features/explore/pages/ConceptOverviewPage").then(m => ({ default: m.ConceptOverviewPage })));
+const CreatorProfilePage = lazy(() => import("./features/explore/pages/CreatorProfilePage").then(m => ({ default: m.CreatorProfilePage })));
 
 function AppRoutes() {
   return (
@@ -68,14 +83,23 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
       <Route path="/reset-password" element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
 
+      {/* Public Ecosystem Routes */}
+      <Route path="/explore" element={renderLazy(<ExploreHubPage />)} />
+      <Route path="/explore/concepts" element={renderLazy(<ConceptOverviewPage />)} />
+      <Route path="/creator/:username" element={renderLazy(<CreatorProfilePage />)} />
+
+      {/* Publicly viewable networks (backend authoritative RBAC protection inside) */}
+      <Route path="/graphs/:id" element={renderLazy(<GraphEditorPage />)} />
+      <Route path="/graphs/:id/edit" element={renderLazy(<GraphEditorPage />)} />
+      <Route path="/network/:id" element={renderLazy(<GraphEditorPage />)} />
+      <Route path="/network/:id/edit" element={renderLazy(<GraphEditorPage />)} />
+      <Route path="/graph" element={renderLazy(<GraphEditorPage />)} />
+      <Route path="/graph/:id" element={renderLazy(<GraphEditorPage />)} />
+      <Route path="/graph/:id/edit" element={renderLazy(<GraphEditorPage />)} />
+
       {/* Account protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute>{renderLazy(<GraphManagementPage />)}</ProtectedRoute>} />
       <Route path="/graphs" element={<ProtectedRoute>{renderLazy(<GraphManagementPage />)}</ProtectedRoute>} />
-      <Route path="/graphs/:id" element={<ProtectedRoute>{renderLazy(<GraphEditorPage />)}</ProtectedRoute>} />
-      <Route path="/graphs/:id/edit" element={<ProtectedRoute>{renderLazy(<GraphEditorPage />)}</ProtectedRoute>} />
-      <Route path="/graph" element={<ProtectedRoute>{renderLazy(<GraphEditorPage />)}</ProtectedRoute>} />
-      <Route path="/graph/:id" element={<ProtectedRoute>{renderLazy(<GraphEditorPage />)}</ProtectedRoute>} />
-      <Route path="/graph/:id/edit" element={<ProtectedRoute>{renderLazy(<GraphEditorPage />)}</ProtectedRoute>} />
       <Route path="/activity" element={<ProtectedRoute>{renderLazy(<ActivityPage />)}</ProtectedRoute>} />
       <Route path="/search" element={<ProtectedRoute>{renderLazy(<SearchPage />)}</ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute>{renderLazy(<VersionHistoryPage />)}</ProtectedRoute>} />
@@ -85,8 +109,8 @@ function AppRoutes() {
       <Route path="/audit-log" element={<ProtectedRoute>{renderLazy(<AuditLogPage />)}</ProtectedRoute>} />
       <Route path="/notifications" element={<ProtectedRoute>{renderLazy(<NotificationHistoryPage />)}</ProtectedRoute>} />
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/" element={<LandingRoute />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

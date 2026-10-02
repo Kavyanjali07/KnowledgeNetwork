@@ -15,6 +15,12 @@ public class GraphUpdateRequest {
 
     private Visibility visibility;
 
+    private com.knowledgenetwork.domain.enums.LicenseType licenseType;
+
+    private Boolean isPublished;
+
+    private String customAttribution;
+
     private Long version;
 
     public GraphUpdateRequest() {
@@ -65,5 +71,29 @@ public class GraphUpdateRequest {
 
     public void setVersion(Long version) {
         this.version = version;
+    }
+
+    public com.knowledgenetwork.domain.enums.LicenseType getLicenseType() {
+        return licenseType;
+    }
+
+    public void setLicenseType(com.knowledgenetwork.domain.enums.LicenseType licenseType) {
+        this.licenseType = licenseType;
+    }
+
+    public Boolean getIsPublished() {
+        return isPublished;
+    }
+
+    public void setIsPublished(Boolean isPublished) {
+        this.isPublished = isPublished;
+    }
+
+    public String getCustomAttribution() {
+        return customAttribution;
+    }
+
+    public void setCustomAttribution(String customAttribution) {
+        this.customAttribution = customAttribution;
     }
 }

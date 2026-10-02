@@ -9,6 +9,8 @@ import { OfflineIndicator } from "../ui/offline-indicator";
 import { FloatingActionButton } from "../ui/floating-action-button";
 import { motion } from "framer-motion";
 
+import { KnowledgeTrailBar } from "../navigation/KnowledgeTrailBar";
+
 type SaasLayoutProps = {
   mainContent?: React.ReactNode;
 };
@@ -27,10 +29,12 @@ export function SaasLayout({ mainContent }: SaasLayoutProps) {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
           >
+            <KnowledgeTrailBar />
             <FloatingNavbar />
             {mainContent ?? <DashboardPreview />}
           </motion.main>
         </div>
+
         <BottomNav />
         <FloatingActionButton className="fixed bottom-20 right-4 z-30 md:bottom-6 md:right-6" aria-label="Create node" />
         <CommandPalette />

@@ -1,11 +1,14 @@
 import type { Edge, Node } from "@xyflow/react";
 import { motion } from "framer-motion";
-import { Activity, GitBranch, Info, PanelRightClose, Save, Trash2, Edit3, Loader2, Link2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Activity, GitBranch, Info, PanelRightClose, Save, Trash2, Edit3, Loader2, Link2, Compass, ArrowRight } from "lucide-react";
 import React, { useEffect, useState } from "react";
+
 import type { KnowledgeNodeData } from "../types";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { useUpdateNode, useDeleteNode, useUpdateEdge, useDeleteEdge } from "../../../hooks/use-mutations";
+
 
 type GraphInspectorProps = {
   width: number;
@@ -209,7 +212,19 @@ export function GraphInspector({
                 <p className="mt-3 text-sm leading-6 text-slate-300">
                   {nodeData.description || "No description provided."}
                 </p>
+
+                <Link
+                  to={`/explore/concepts?q=${encodeURIComponent(nodeData.title)}`}
+                  className="mt-4 flex items-center justify-between p-3 rounded-xl border border-cyan-500/30 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 text-xs font-semibold transition group"
+                >
+                  <span className="flex items-center gap-2">
+                    <Compass size={14} />
+                    Explore concept across public networks
+                  </span>
+                  <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                </Link>
               </div>
+
             ) : (
               <form onSubmit={handleSaveNode} className="rounded-xl border border-cyan-400/30 bg-white/[0.05] p-4 space-y-3">
                 <div className="flex items-center justify-between border-b border-white/10 pb-2">
@@ -352,11 +367,24 @@ export function GraphInspector({
                   </button>
                 </div>
 
-                <div className="mt-3 flex items-center gap-2 text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
-                  <span className="font-medium text-cyan-400 truncate max-w-[120px]">{sourceNodeTitle || "Source"}</span>
-                  <span className="text-cyan-500 font-bold">&rarr;</span>
-                  <span className="font-medium text-cyan-400 truncate max-w-[120px]">{targetNodeTitle || "Target"}</span>
+                <div className="mt-3 flex items-center justify-between text-xs text-slate-300 bg-slate-950/60 p-2.5 rounded-lg border border-slate-800">
+                  <Link
+                    to={`/explore/concepts?q=${encodeURIComponent(sourceNodeTitle || "Source")}`}
+                    className="font-medium text-cyan-400 hover:underline truncate max-w-[120px]"
+                    title="Explore source concept"
+                  >
+                    {sourceNodeTitle || "Source"}
+                  </Link>
+                  <span className="text-cyan-500 font-bold px-1">&rarr;</span>
+                  <Link
+                    to={`/explore/concepts?q=${encodeURIComponent(targetNodeTitle || "Target")}`}
+                    className="font-medium text-cyan-400 hover:underline truncate max-w-[120px]"
+                    title="Explore target concept"
+                  >
+                    {targetNodeTitle || "Target"}
+                  </Link>
                 </div>
+
 
                 {edgeLabel && (
                   <h3 className="mt-3 text-lg font-semibold text-slate-100">{edgeLabel}</h3>

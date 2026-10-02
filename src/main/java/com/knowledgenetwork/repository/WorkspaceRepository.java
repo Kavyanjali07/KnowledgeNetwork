@@ -57,4 +57,44 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
             @Param("user") User user,
             @Param("query") String query,
             Pageable pageable);
+
+    @Query("""
+        SELECT DISTINCT w FROM Workspace w
+        WHERE w.isDeleted = false
+        AND w.isPublished = true
+        AND w.visibility = com.knowledgenetwork.domain.model.Visibility.PUBLIC
+        AND (:concept IS NULL OR :concept = '' OR EXISTS (
+            SELECT n FROM Node n WHERE n.workspace = w AND n.isDeleted = false AND LOWER(n.label) LIKE LOWER(CONCAT('%', :concept, '%'))
+        ))
+        AND (:creatorUsername IS NULL OR :creatorUsername = '' OR LOWER(w.owner.email) = LOWER(:creatorUsername) OR LOWER(SUBSTRING(w.owner.email, 1, CASE WHEN LOCATE('@', w.owner.email) > 0 THEN LOCATE('@', w.owner.email) - 1 ELSE LENGTH(w.owner.email) END)) = LOWER(:creatorUsername) OR LOWER(w.owner.firstName) = LOWER(:creatorUsername))
+        AND (:licenseType IS NULL OR w.licenseType = :licenseType)
+    """)
+    Page<Workspace> findPublicWorkspaces(
+            @Param("concept") String concept,
+            @Param("creatorUsername") String creatorUsername,
+            @Param("licenseType") com.knowledgenetwork.domain.enums.LicenseType licenseType,
+            Pageable pageable);
+
+    List<Workspace> findByOwnerAndIsPublishedTrueAndVisibilityAndIsDeletedFalse(
+            User owner,
+            Visibility visibility);
+
+    @Query("""
+        SELECT DISTINCT w2 FROM Node n1
+        JOIN Node n2 ON LOWER(n1.label) = LOWER(n2.label)
+        JOIN n2.workspace w2
+        WHERE n1.workspace = :targetWorkspace
+        AND n1.isDeleted = false
+        AND n2.isDeleted = false
+        AND w2.id != :targetWorkspaceId
+        AND w2.isDeleted = false
+        AND w2.isPublished = true
+        AND w2.visibility = com.knowledgenetwork.domain.model.Visibility.PUBLIC
+    """)
+    List<Workspace> findRelatedPublicWorkspacesBySharedConcepts(
+            @Param("targetWorkspace") Workspace targetWorkspace,
+            @Param("targetWorkspaceId") UUID targetWorkspaceId,
+            Pageable pageable);
 }
+
+

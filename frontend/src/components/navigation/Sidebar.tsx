@@ -2,6 +2,7 @@ import {
   Activity,
   Bell,
   ChevronLeft,
+  Compass,
   History,
   LayoutDashboard,
   Network,
@@ -16,14 +17,20 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/cn";
 
-const navItems = [
-  { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { label: "Graphs", icon: Network, href: "/graphs" },
-  { label: "History", icon: History, href: "/history" },
+const primaryItems = [
+  { label: "Knowledge Home", icon: LayoutDashboard, href: "/dashboard" },
+  { label: "Networks", icon: Network, href: "/graphs" },
+  { label: "Explore Hub", icon: Compass, href: "/explore" },
   { label: "Search", icon: Search, href: "/search" },
-  { label: "Audit Log", icon: ShieldCheck, href: "/audit-log" },
-  { label: "Notifications", icon: Bell, href: "/notifications" },
+];
+
+const secondaryItems = [
+  { label: "History", icon: History, href: "/history" },
   { label: "Activity", icon: Activity, href: "/activity" },
+];
+
+const utilityItems = [
+  { label: "Notifications", icon: Bell, href: "/notifications" },
   { label: "Profile", icon: User, href: "/profile" },
   { label: "Settings", icon: Settings2, href: "/settings" }
 ];
@@ -32,6 +39,29 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+
+  const renderNavLink = (item: { label: string; icon: any; href: string }) => {
+    const active = location.pathname === item.href || (item.href === "/graphs" && location.pathname.startsWith("/graph"));
+    return (
+      <Link
+        key={item.label}
+        to={item.href}
+        onClick={() => setMobileOpen(false)}
+        className={cn(
+          "group flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm transition",
+          active
+            ? "bg-cyan-500/12 text-cyan-200 font-medium shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] border border-cyan-500/20"
+            : "text-muted-foreground hover:bg-white/7 hover:text-foreground"
+        )}
+      >
+        <item.icon
+          size={17}
+          className={cn(active ? "text-cyan-300" : "text-slate-500 group-hover:text-slate-200")}
+        />
+        {!collapsed && <span>{item.label}</span>}
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -57,8 +87,8 @@ export function Sidebar() {
             </Link>
             {!collapsed && (
               <Link to="/dashboard" className="min-w-0">
-                <p className="truncate text-sm font-semibold">KnowledgeNetwork</p>
-                <p className="truncate text-xs text-muted-foreground">Research Graph</p>
+                <p className="truncate text-sm font-semibold text-white">KnowledgeNetwork</p>
+                <p className="truncate text-xs text-muted-foreground">Personal Workspace</p>
               </Link>
             )}
             <button
@@ -77,58 +107,22 @@ export function Sidebar() {
             </button>
           </div>
 
-          <div className="mt-4 rounded-lg border border-white/10 bg-white/[0.04] p-2">
-            {!collapsed && <p className="px-2 pb-2 text-xs font-medium text-muted-foreground">Workspace</p>}
-            <Link to="/graphs" className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-white/8">
-              <div className="h-7 w-7 rounded-md bg-cyan-400/20 ring-1 ring-cyan-300/30 flex items-center justify-center text-cyan-300">
-                <Network size={14} />
-              </div>
-              {!collapsed && (
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">Product Intelligence</p>
-                  <p className="truncate text-xs text-muted-foreground">42 nodes synced</p>
-                </div>
-              )}
-            </Link>
+          <div className="mt-4 space-y-1">
+            {primaryItems.map(renderNavLink)}
           </div>
 
-          <nav className="mt-4 space-y-1">
-            {navItems.map((item) => {
-              const active = location.pathname === item.href || (item.href === "/graphs" && location.pathname.startsWith("/graph"));
-              return (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "group flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm transition",
-                    active
-                      ? "bg-white/10 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                      : "text-muted-foreground hover:bg-white/7 hover:text-foreground"
-                  )}
-                >
-                  <item.icon
-                    size={17}
-                    className={cn(active ? "text-cyan-300" : "text-slate-500 group-hover:text-slate-200")}
-                  />
-                  {!collapsed && <span>{item.label}</span>}
-                </Link>
-              );
-            })}
-          </nav>
+          <div className="mt-4 border-t border-white/10 pt-3">
+            {!collapsed && <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Activity</p>}
+            <div className="space-y-1">
+              {secondaryItems.map(renderNavLink)}
+            </div>
+          </div>
 
-          <div className="mt-auto rounded-lg border border-white/10 bg-white/[0.035] p-3">
-            {!collapsed ? (
-              <>
-                <p className="text-xs font-medium text-muted-foreground">Storage</p>
-                <div className="mt-3 h-1.5 rounded-full bg-white/8">
-                  <div className="h-full w-2/3 rounded-full bg-gradient-to-r from-violet-400 to-cyan-300" />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">68% indexed</p>
-              </>
-            ) : (
-              <div className="mx-auto h-8 w-8 rounded-full border border-cyan-300/30 bg-cyan-300/10" />
-            )}
+          <div className="mt-auto border-t border-white/10 pt-3">
+            {!collapsed && <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Account</p>}
+            <div className="space-y-1">
+              {utilityItems.map(renderNavLink)}
+            </div>
           </div>
         </div>
       </aside>

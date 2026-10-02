@@ -21,6 +21,8 @@ public enum AuditAction {
     GRAPH_CREATED,
     GRAPH_UPDATED,
     GRAPH_DELETED,
+    GRAPH_PUBLISHED,
+    GRAPH_UNPUBLISHED,
 
     // Node
     NODE_CREATED,

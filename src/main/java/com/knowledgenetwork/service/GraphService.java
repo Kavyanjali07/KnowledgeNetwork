@@ -47,6 +47,8 @@ public class GraphService {
     private final EdgeTypeRepository edgeTypeRepository;
     private final NodeRepository nodeRepository;
     private final EdgeRepository edgeRepository;
+    private final com.knowledgenetwork.repository.GraphForkRepository graphForkRepository;
+    private final com.knowledgenetwork.repository.NetworkReferenceRepository networkReferenceRepository;
     private final WorkspaceSecurityValidator workspaceSecurityValidator;
     private final GraphMapper graphMapper;
     private final AuditLogService auditLogService;
@@ -58,6 +60,8 @@ public class GraphService {
                         EdgeTypeRepository edgeTypeRepository,
                         NodeRepository nodeRepository,
                         EdgeRepository edgeRepository,
+                        com.knowledgenetwork.repository.GraphForkRepository graphForkRepository,
+                        com.knowledgenetwork.repository.NetworkReferenceRepository networkReferenceRepository,
                         WorkspaceSecurityValidator workspaceSecurityValidator,
                         GraphMapper graphMapper,
                         AuditLogService auditLogService) {
@@ -68,6 +72,8 @@ public class GraphService {
         this.edgeTypeRepository = edgeTypeRepository;
         this.nodeRepository = nodeRepository;
         this.edgeRepository = edgeRepository;
+        this.graphForkRepository = graphForkRepository;
+        this.networkReferenceRepository = networkReferenceRepository;
         this.workspaceSecurityValidator = workspaceSecurityValidator;
         this.graphMapper = graphMapper;
         this.auditLogService = auditLogService;
@@ -83,6 +89,14 @@ public class GraphService {
         Visibility visibility = request.getVisibility() != null ? request.getVisibility() : Visibility.PRIVATE;
 
         Workspace workspace = new Workspace(title, request.getDescription(), owner, visibility);
+        if (request.getLicenseType() != null) {
+            workspace.setLicenseType(request.getLicenseType());
+        }
+        if (request.isPublished()) {
+            workspace.setPublished(true);
+            workspace.setPublishedAt(java.time.Instant.now());
+            workspace.setVisibility(Visibility.PUBLIC);
+        }
         String currentUserIdString = currentUserId.toString();
         workspace.setCreatedBy(currentUserIdString);
         workspace.setUpdatedBy(currentUserIdString);
@@ -177,11 +191,89 @@ public class GraphService {
             workspace.setVisibility(request.getVisibility());
         }
 
+        if (request.getLicenseType() != null) {
+            workspace.setLicenseType(request.getLicenseType());
+        }
+
+        if (request.getIsPublished() != null) {
+            boolean pub = request.getIsPublished();
+            workspace.setPublished(pub);
+            if (pub) {
+                if (workspace.getPublishedAt() == null) {
+                    workspace.setPublishedAt(java.time.Instant.now());
+                }
+                workspace.setVisibility(Visibility.PUBLIC);
+            }
+        }
+
+        if (request.getCustomAttribution() != null) {
+            workspace.setCustomAttribution(request.getCustomAttribution());
+        }
+
         workspace.setUpdatedBy(currentUserId.toString());
         workspace = workspaceRepository.save(workspace);
 
         auditLogService.recordEvent(
                 AuditAction.GRAPH_UPDATED,
+                AuditEntityType.GRAPH,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("title", workspace.getName())
+        );
+
+        return mapToGraphResponse(workspace);
+    }
+
+    @Transactional
+    public GraphResponse publishGraph(UUID graphId, com.knowledgenetwork.domain.enums.LicenseType licenseType, String customAttribution) {
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(graphId)
+                .orElseThrow(() -> new ResourceNotFoundException("Graph", "id", graphId));
+
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        workspaceSecurityValidator.validateOwnerAccess(workspace, currentUserId);
+
+        workspace.setPublished(true);
+        if (workspace.getPublishedAt() == null) {
+            workspace.setPublishedAt(java.time.Instant.now());
+        }
+        if (licenseType != null) {
+            workspace.setLicenseType(licenseType);
+        }
+        if (customAttribution != null) {
+            workspace.setCustomAttribution(customAttribution);
+        }
+        workspace.setVisibility(Visibility.PUBLIC);
+        workspace.setUpdatedBy(currentUserId.toString());
+
+        workspace = workspaceRepository.save(workspace);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_PUBLISHED,
+                AuditEntityType.GRAPH,
+                workspace.getId(),
+                workspace.getId(),
+                java.util.Map.of("title", workspace.getName(), "licenseType", workspace.getLicenseType().name())
+        );
+
+        return mapToGraphResponse(workspace);
+    }
+
+    @Transactional
+    public GraphResponse unpublishGraph(UUID graphId) {
+        Workspace workspace = workspaceRepository.findByIdAndIsDeletedFalse(graphId)
+                .orElseThrow(() -> new ResourceNotFoundException("Graph", "id", graphId));
+
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
+        workspaceSecurityValidator.validateOwnerAccess(workspace, currentUserId);
+
+        workspace.setPublished(false);
+        workspace.setVisibility(Visibility.PRIVATE);
+        workspace.setUpdatedBy(currentUserId.toString());
+
+        workspace = workspaceRepository.save(workspace);
+
+        auditLogService.recordEvent(
+                AuditAction.GRAPH_UNPUBLISHED,
                 AuditEntityType.GRAPH,
                 workspace.getId(),
                 workspace.getId(),
@@ -245,6 +337,8 @@ public class GraphService {
         try {
             response.setNodeCount(nodeRepository.countByWorkspaceAndIsDeletedFalse(workspace));
             response.setEdgeCount(edgeRepository.countByWorkspaceAndIsDeletedFalse(workspace));
+            response.setDerivativeCount(graphForkRepository.countBySourceWorkspace(workspace));
+            response.setReferenceCount(networkReferenceRepository.countByTargetWorkspace(workspace));
         } catch (Exception ignored) {
         }
         return response;
