@@ -9,8 +9,7 @@ import {
   Settings,
   Sparkles,
   Sun,
-  User,
-  Wand2
+  User
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";

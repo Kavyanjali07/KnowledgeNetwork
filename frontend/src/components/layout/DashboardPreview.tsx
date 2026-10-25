@@ -5,10 +5,8 @@ import {
   ArrowRight,
   Eye,
   GitBranch,
-  Lock,
   Network,
   Plus,
-  Search,
   Sparkles,
 } from "lucide-react";
 import { graphApi } from "../../services";

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../components/ui/toast";
 import { authApi, notificationApi, workspaceApi, graphApi, nodeApi, edgeApi, socialApi, userApi, versioningApi } from "../services";
+import type { LicenseType } from "../services/graphApi";
 import type { WorkspaceNodesQuery } from "./use-queries";
 
 export function useAuthMutation() {
@@ -429,7 +430,7 @@ export function useCreateGraph() {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
   return useMutation({
-    mutationFn: (req: { title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE' }) =>
+    mutationFn: (req: { title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE'; licenseType?: LicenseType }) =>
       graphApi.create(req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["graphs"] });
@@ -446,8 +447,8 @@ export function useUpdateGraph() {
   const queryClient = useQueryClient();
   const { addToast } = useToast();
   return useMutation({
-    mutationFn: (req: { id: string; title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE'; version?: number }) =>
-      graphApi.update(req.id, { title: req.title, description: req.description, visibility: req.visibility, version: req.version }),
+    mutationFn: (req: { id: string; title: string; description?: string; visibility?: 'PUBLIC' | 'PRIVATE'; version?: number; licenseType?: LicenseType; customAttribution?: string }) =>
+      graphApi.update(req.id, { title: req.title, description: req.description, visibility: req.visibility, version: req.version, licenseType: req.licenseType, customAttribution: req.customAttribution }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["graphs"] });
       queryClient.invalidateQueries({ queryKey: ["graph", variables.id] });

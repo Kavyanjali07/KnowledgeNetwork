@@ -1,5 +1,5 @@
 import { LICENSE_METADATA, type LicenseType } from "../../../services/graphApi";
-import { Check, Info, Shield, ExternalLink } from "lucide-react";
+import { Check, Shield, ExternalLink } from "lucide-react";
 
 interface LicenseSelectorProps {
   value: LicenseType;

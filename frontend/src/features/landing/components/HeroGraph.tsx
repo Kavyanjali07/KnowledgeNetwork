@@ -30,15 +30,29 @@ const EDGES = [
   { from: "ethics", to: "gpt", label: "governs" },
 ];
 
-const TYPE_COLORS: Record<string, { bg: string; border: string; glow: string }> = {
-  Concept: { bg: "rgba(34,211,238,0.12)", border: "rgba(34,211,238,0.45)", glow: "rgba(34,211,238,0.2)" },
+interface NodeColorScheme {
+  bg: string;
+  border: string;
+  glow: string;
+}
+
+const DEFAULT_COLOR: NodeColorScheme = {
+  bg: "rgba(34,211,238,0.12)",
+  border: "rgba(34,211,238,0.45)",
+  glow: "rgba(34,211,238,0.2)"
+};
+
+const TYPE_COLORS: Record<string, NodeColorScheme> = {
+  Concept: DEFAULT_COLOR,
   Technology: { bg: "rgba(167,139,250,0.12)", border: "rgba(167,139,250,0.45)", glow: "rgba(167,139,250,0.2)" },
   Resource: { bg: "rgba(52,211,153,0.12)", border: "rgba(52,211,153,0.45)", glow: "rgba(52,211,153,0.2)" },
   Decision: { bg: "rgba(251,191,36,0.12)", border: "rgba(251,191,36,0.45)", glow: "rgba(251,191,36,0.2)" },
 };
 
+const DEFAULT_TEXT_COLOR = "rgba(34,211,238,0.95)";
+
 const TYPE_TEXT_COLORS: Record<string, string> = {
-  Concept: "rgba(34,211,238,0.95)",
+  Concept: DEFAULT_TEXT_COLOR,
   Technology: "rgba(167,139,250,0.95)",
   Resource: "rgba(52,211,153,0.95)",
   Decision: "rgba(251,191,36,0.95)",
@@ -205,8 +219,8 @@ export function HeroGraph() {
 
         {/* Nodes */}
         {NODES.map((node, i) => {
-          const colors = TYPE_COLORS[node.type] || TYPE_COLORS.Concept;
-          const textColor = TYPE_TEXT_COLORS[node.type] || TYPE_TEXT_COLORS.Concept;
+          const colors: NodeColorScheme = TYPE_COLORS[node.type] ?? DEFAULT_COLOR;
+          const textColor = TYPE_TEXT_COLORS[node.type] ?? DEFAULT_TEXT_COLOR;
           const isSelected = activeNodeId === node.id;
           const isHovered = hoveredNodeId === node.id;
           const isConnected = connectedNodeIds.has(node.id);
@@ -289,7 +303,7 @@ export function HeroGraph() {
                 <div className="flex items-center gap-2">
                   <span
                     className="inline-block h-2.5 w-2.5 rounded-full"
-                    style={{ backgroundColor: TYPE_TEXT_COLORS[activeNode.type] || "#22D3EE" }}
+                    style={{ backgroundColor: TYPE_TEXT_COLORS[activeNode.type] ?? DEFAULT_TEXT_COLOR }}
                   />
                   <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
                     {activeNode.type} Concept
