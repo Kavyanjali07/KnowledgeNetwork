@@ -7,3 +7,36 @@ dist/
 .idea/
 *.iml
 .DS_Store
+
+# Local PostgreSQL cluster
+.postgres_data/
+
+# Application and server logs
+logs/
+*.log
+*.log.gz
+*.log.*.tmp
+
+# AppleDouble metadata files
+._*
+**/._*
+
+# Local database dumps and backups
+*.dump
+*.dump.sql
+*.bak
+*.sql.bak
+*.sql.gz
+*.rdb
+# Preserve Flyway migrations
+!src/main/resources/db/migration/*.sql
+
+# Environment-specific secret files (preserve safe examples)
+.env.*
+!.env.example
+!frontend/.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
