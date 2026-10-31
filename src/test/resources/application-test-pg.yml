@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    locations: classpath:db/migration
+    schemas: public
+    clean-disabled: false
+
+  cache:
+    type: simple
+
+app:
+  jwt:
+    secret: test-secret-value-for-jwt-authentication-testing-key-32bytes-minimum
+    access-token-expiration-ms: 900000
+    refresh-token-expiration-ms: 604800000
+    issuer: test-issuer
