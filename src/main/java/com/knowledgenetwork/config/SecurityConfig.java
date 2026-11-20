@@ -6,6 +6,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -62,10 +63,17 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/public/**").permitAll()
-                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico").permitAll()
-                        .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                        .requestMatchers("/", "/index.html", "/assets/**", "/favicon.ico", "/favicon.svg", "/error").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/login", "/register", "/verify-email", "/forgot-password", "/reset-password",
+                                "/explore", "/explore/**", "/creator/**",
+                                "/graphs", "/graphs/**", "/network/**", "/graph", "/graph/**",
+                                "/dashboard", "/activity", "/search", "/history",
+                                "/profile", "/settings", "/settings/**", "/audit-log", "/notifications"
+                        ).permitAll()
+                        .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/graphs/*", "/api/v1/graphs/*/nodes", "/api/v1/workspaces/*/nodes", "/api/v1/workspaces/*/edges", "/api/v1/graphs/*/provenance").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/graphs/*", "/api/v1/graphs/*/nodes", "/api/v1/workspaces/*/nodes", "/api/v1/workspaces/*/edges", "/api/v1/graphs/*/provenance").permitAll()
                         .anyRequest().authenticated()
                 );
 
@@ -98,12 +106,9 @@ public class SecurityConfig {
         }
         Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
+                .map(origin -> origin.replaceAll("/+$", ""))
                 .filter(origin -> !origin.isEmpty())
                 .forEach(patterns::add);
-
-        if (patterns.isEmpty()) {
-            patterns.add("http://localhost:5173");
-        }
 
         configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

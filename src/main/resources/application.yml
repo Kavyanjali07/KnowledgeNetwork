@@ -15,7 +15,7 @@ spring:
             required: true
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}
   servlet:
     context-path: /
   tomcat:
@@ -37,6 +37,8 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+    mail:
+      enabled: false
   metrics:
     tags:
       application: knowledge-network
@@ -198,7 +200,7 @@ app:
   cookie:
     secure: ${APP_COOKIE_SECURE:true}
   cors:
-    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:}
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:${RENDER_EXTERNAL_URL:}}
     include-local-origins: ${APP_CORS_INCLUDE_LOCAL_ORIGINS:false}
   jwt:
     secret: ${APP_JWT_SECRET}
